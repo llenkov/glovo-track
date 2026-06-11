@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Glovo Tracker Pro</title>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+<style>
+body{
+  margin:0;
+  font-family: Arial;
+  background:#0b1220;
+  color:white;
+}
+
+/* TOP AREA */
+.container{
+  padding:15px;
+  padding-bottom:80px;
+}
+
+/* CARDS */
+.card{
+  background:#1e293b;
+  padding:12px;
+  border-radius:12px;
+  margin-bottom:12px;
+}
+
+input, select{
+  width:100%;
+  padding:10px;
+  margin:6px 0;
+  border-radius:8px;
+  border:none;
+}
+
+/* BUTTON */
+button{
+  width:100%;
+  padding:10px;
+  border:none;
+  border-radius:8px;
+  background:#22c55e;
+  color:white;
+  font-weight:bold;
+}
+
+/* BOTTOM NAV */
+.nav{
+  position:fixed;
+  bottom:0;
+  left:0;
+  right:0;
+  height:65px;
+  background:#0f172a;
+  display:flex;
+  justify-content:space-around;
+  align-items:center;
+  border-top:1px solid #1e293b;
+}
+
+.nav button{
+  background:none;
+  color:white;
+  font-size:12px;
+  padding:0;
+}
+.nav span{
+  display:block;
+  font-size:18px;
+}
+.hidden{display:none;}
+
+.small{font-size:12px;opacity:0.8;}
+</style>
+</head>
+
+<body>
+
+<div class="container">
+
+<!-- DASHBOARD -->
+<div id="home">
+
+  <div class="card">
+    <h3>📊 Dashboard</h3>
+    <div id="dash" class="small">Loading...</div>
+  </div>
+
+</div>
+
+<!-- WEEK -->
+<div id="week" class="hidden">
+
+  <div class="card">
+    <h3>📦 New Week</h3>
+    <input id="start" type="date">
+    <input id="end" type="date">
+    <input id="gross" type="number" placeholder="Gross (€)">
+    <input id="percent" type="number" value="20">
+    <button onclick="saveWeek()">Save</button>
+  </div>
+
+</div>
+
+<!-- EXPENSES -->
+<div id="expenses" class="hidden">
+
+  <div class="card">
+    <h3>⛽ Expense</h3>
+    <input id="exp_date" type="date">
+    <input id="exp_amount" type="number" placeholder="Amount">
+    <input id="exp_cat" placeholder="Category">
+    <input id="exp_note" placeholder="Note">
+    <button onclick="addExpense()">Add</button>
+  </div>
+
+</div>
+
+<!-- PAYMENTS -->
+<div id="payments" class="hidden">
+
+  <div class="card">
+    <h3>💸 Payment</h3>
+    <input id="pay_date" type="date">
+    <input id="pay_amount" type="number" placeholder="Amount">
+    <input id="pay_note" placeholder="Note">
+    <button onclick="addPayment()">Add</button>
+  </div>
+
+</div>
+
+</div>
+
+<!-- BOTTOM NAV -->
+<div class="nav">
+  <button onclick="show('home')"><span>🏠</span>Home</button>
+  <button onclick="show('week')"><span>📦</span>Week</button>
+  <button onclick="show('expenses')"><span>⛽</span>Exp</button>
+  <button onclick="show('payments')"><span>💸</span>Pay</button>
+</div>
+
+<script>
+
+const supabase = window.supabase.createClient(
+  "SUPABASE_URL",
+  "SUPABASE_ANON_KEY"
+);
+
+let currentWeek = null;
+
+/* NAV */
+function show(id){
+  document.querySelectorAll('.container > div').forEach(d => d.classList.add('hidden'));
+  document.getElementById(id).classList.remove('hidden');
+}
+
+/* CALC */
+function calc(g,p){
+  return {
+    fee: g*p/100,
+    net: g - (g*p/100)
+  };
+}
+
+/* WEEK */
+async function saveWeek(){
+  const g = +gross.value;
+  const p = +percent.value;
+
+  const c = calc(g,p);
+
+  await supabase.from('weeks').insert([{
+    start_date:start.value,
+    end_date:end.value,
+    gross_income:g,
+    operator_percent:p,
+    operator_fee:c.fee,
+    net_income:c.net
+  }]);
+
+  alert("Week saved");
+  load();
+}
+
+/* EXP */
+async function addExpense(){
+  const w = await getWeek();
+
+  await supabase.from('expenses').insert([{
+    week_id:w.id,
+    expense_date:exp_date.value,
+    amount:+exp_amount.value,
+    category:exp_cat.value,
+    note:exp_note.value
+  }]);
+
+  alert("Expense added");
+  load();
+}
+
+/* PAY */
+async function addPayment(){
+  const w = await getWeek();
+
+  await supabase.from('payments').insert([{
+    week_id:w.id,
+    payment_date:pay_date.value,
+    amount:+pay_amount.value,
+    note:pay_note.value
+  }]);
+
+  alert("Payment added");
+  load();
+}
+
+/* GET WEEK */
+async function getWeek(){
+  const {data} = await supabase
+    .from('weeks')
+    .select('*')
+    .order('created_at',{ascending:false})
+    .limit(1);
+
+  return data[0];
+}
+
+/* DASHBOARD */
+async function load(){
+
+  const w = await getWeek();
+  if(!w) return;
+
+  const {data:ex} = await supabase
+    .from('expenses')
+    .select('*')
+    .eq('week_id', w.id);
+
+  const {data:pa} = await supabase
+    .from('payments')
+    .select('*')
+    .eq('week_id', w.id);
+
+  const exp = ex?.reduce((a,b)=>a+b.amount,0)||0;
+  const pay = pa?.reduce((a,b)=>a+b.amount,0)||0;
+
+  const profit = w.net_income - exp;
+  const diff = pay - profit;
+
+  document.getElementById("dash").innerHTML = `
+    <b>${w.start_date} → ${w.end_date}</b><br><br>
+    Gross: €${w.gross_income}<br>
+    Fee (${w.operator_percent}%): €${w.operator_fee}<br>
+    Net: €${w.net_income}<br><br>
+
+    Expenses: €${exp}<br>
+    Profit: €${profit}<br><br>
+
+    Payments: €${pay}<br>
+    Difference: €${diff}
+  `;
+}
+
+load();
+
+</script>
+
+</body>
+</html>
