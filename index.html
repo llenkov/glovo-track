@@ -1,18 +1,555 @@
-Ето новия дизайн! Основните промени:
+<!DOCTYPE html>
+<html lang="bg">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Glovo Tracker</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-**Визуално:**
-- Inter шрифт вместо Arial
-- Оранжев акцент (подходящ за Glovo) вместо зелено
-- Stat карти с цветово кодиране — зелено за печалба, червено за дефицит
-- Period badge за периода на седмицата
-- Skeleton loading при зареждане
+  :root {
+    --bg:        #080e1a;
+    --surface:   #111827;
+    --surface2:  #1a2540;
+    --border:    #1e2d45;
+    --accent:    #f97316;
+    --accent2:   #fb923c;
+    --green:     #22c55e;
+    --red:       #ef4444;
+    --text:      #f1f5f9;
+    --muted:     #64748b;
+    --label:     #94a3b8;
+  }
 
-**UX подобрения:**
-- `alert()` → ненатрапчив toast notification долу
-- Лейбъли над всяко поле
-- `€` символ вграден в input полетата
-- Датите в DD.MM.YYYY формат в dashboard
-- Активен tab се маркира в навигацията
-- Empty state с ясно послание
+  body {
+    font-family: 'Inter', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+  }
 
-**Логика:** — нищо не е пипано, всичко работи както преди.
+  /* HEADER */
+  .header {
+    padding: 20px 16px 10px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .header-logo {
+    width: 36px; height: 36px;
+    background: var(--accent);
+    border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px;
+  }
+  .header h1 { font-size: 18px; font-weight: 700; letter-spacing: -0.3px; }
+  .header p  { font-size: 11px; color: var(--muted); margin-top: 1px; }
+
+  /* CONTAINER */
+  .container { padding: 0 16px 90px; }
+
+  /* PAGE */
+  .page { display: none; }
+  .page.active { display: block; }
+
+  /* SECTION TITLE */
+  .section-title {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+    margin: 20px 0 10px;
+  }
+
+  /* STAT GRID */
+  .stat-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin-bottom: 14px;
+  }
+  .stat-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 14px;
+  }
+  .stat-card.full { grid-column: 1 / -1; }
+  .stat-card.accent-card { border-color: var(--accent); background: rgba(249,115,22,0.07); }
+  .stat-card.green-card  { border-color: var(--green);  background: rgba(34,197,94,0.07);  }
+  .stat-card.red-card    { border-color: var(--red);    background: rgba(239,68,68,0.07);   }
+
+  .stat-label { font-size: 11px; color: var(--muted); font-weight: 500; margin-bottom: 4px; }
+  .stat-value { font-size: 22px; font-weight: 700; letter-spacing: -0.5px; }
+  .stat-value.accent { color: var(--accent); }
+  .stat-value.green  { color: var(--green);  }
+  .stat-value.red    { color: var(--red);    }
+  .stat-sub  { font-size: 11px; color: var(--muted); margin-top: 3px; }
+
+  /* PERIOD BADGE */
+  .period-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 5px 12px;
+    font-size: 12px;
+    color: var(--label);
+    margin-bottom: 14px;
+  }
+  .period-badge span { color: var(--text); font-weight: 600; }
+
+  /* FORM CARD */
+  .form-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 16px;
+    margin-bottom: 12px;
+  }
+  .form-card h2 {
+    font-size: 15px;
+    font-weight: 600;
+    margin-bottom: 14px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .form-card h2 .icon {
+    width: 28px; height: 28px;
+    border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 14px;
+  }
+  .icon-orange { background: rgba(249,115,22,0.15); }
+  .icon-green  { background: rgba(34,197,94,0.15);  }
+  .icon-blue   { background: rgba(59,130,246,0.15); }
+
+  /* FIELD */
+  .field { margin-bottom: 10px; }
+  .field label {
+    display: block;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 5px;
+  }
+  .field input {
+    width: 100%;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 11px 13px;
+    color: var(--text);
+    font-size: 14px;
+    font-family: 'Inter', sans-serif;
+    transition: border-color 0.15s;
+    outline: none;
+  }
+  .field input:focus { border-color: var(--accent); }
+
+  /* DATE ROW */
+  .date-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+
+  /* AMOUNT ROW */
+  .amount-wrap { position: relative; }
+  .amount-wrap input { padding-left: 30px; }
+  .amount-wrap::before {
+    content: '€';
+    position: absolute;
+    left: 13px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--muted);
+    font-size: 14px;
+    font-weight: 600;
+  }
+
+  /* BUTTON */
+  .btn {
+    width: 100%;
+    padding: 13px;
+    border: none;
+    border-radius: 12px;
+    font-size: 14px;
+    font-weight: 600;
+    font-family: 'Inter', sans-serif;
+    cursor: pointer;
+    transition: opacity 0.15s, transform 0.1s;
+    margin-top: 4px;
+  }
+  .btn:active { transform: scale(0.98); opacity: 0.85; }
+  .btn-orange { background: var(--accent); color: white; }
+  .btn-green  { background: var(--green);  color: white; }
+  .btn-blue   { background: #3b82f6;       color: white; }
+
+  /* EMPTY STATE */
+  .empty {
+    text-align: center;
+    padding: 40px 20px;
+    color: var(--muted);
+  }
+  .empty-icon { font-size: 36px; margin-bottom: 10px; }
+  .empty p { font-size: 13px; line-height: 1.5; }
+
+  /* TOAST */
+  .toast {
+    position: fixed;
+    bottom: 85px;
+    left: 50%;
+    transform: translateX(-50%) translateY(20px);
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 10px 18px;
+    border-radius: 20px;
+    font-size: 13px;
+    font-weight: 500;
+    opacity: 0;
+    transition: opacity 0.2s, transform 0.2s;
+    pointer-events: none;
+    white-space: nowrap;
+    z-index: 100;
+  }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+  /* BOTTOM NAV */
+  .nav {
+    position: fixed;
+    bottom: 0; left: 0; right: 0;
+    height: 70px;
+    background: var(--surface);
+    border-top: 1px solid var(--border);
+    display: flex;
+    justify-content: space-around;
+    align-items: center;
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+  .nav-btn {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 3px;
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 8px 0;
+    color: var(--muted);
+    font-family: 'Inter', sans-serif;
+    font-size: 10px;
+    font-weight: 500;
+    transition: color 0.15s;
+  }
+  .nav-btn .nav-icon {
+    width: 28px; height: 28px;
+    border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 16px;
+    transition: background 0.15s;
+  }
+  .nav-btn.active { color: var(--accent); }
+  .nav-btn.active .nav-icon { background: rgba(249,115,22,0.15); }
+
+  /* DIVIDER */
+  .divider {
+    height: 1px;
+    background: var(--border);
+    margin: 14px 0;
+  }
+
+  /* LOADING SKELETON */
+  .skeleton {
+    background: linear-gradient(90deg, var(--surface) 25%, var(--surface2) 50%, var(--surface) 75%);
+    background-size: 200% 100%;
+    animation: shimmer 1.2s infinite;
+    border-radius: 8px;
+    height: 16px;
+    margin: 6px 0;
+  }
+  @keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-logo">🛵</div>
+  <div>
+    <h1>Glovo Tracker</h1>
+    <p>Финансово проследяване</p>
+  </div>
+</div>
+
+<div class="container">
+
+  <!-- DASHBOARD -->
+  <div id="home" class="page active">
+    <div id="dash">
+      <div class="skeleton" style="width:60%;height:12px"></div>
+      <div class="stat-grid" style="margin-top:14px">
+        <div class="stat-card"><div class="skeleton"></div><div class="skeleton" style="width:70%"></div></div>
+        <div class="stat-card"><div class="skeleton"></div><div class="skeleton" style="width:70%"></div></div>
+        <div class="stat-card full"><div class="skeleton"></div><div class="skeleton" style="width:50%"></div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- WEEK -->
+  <div id="week" class="page">
+    <div class="section-title">Нова седмица</div>
+    <div class="form-card">
+      <h2><span class="icon icon-orange">📦</span> Период</h2>
+      <div class="field">
+        <label>От — До</label>
+        <div class="date-row">
+          <input id="start" type="date">
+          <input id="end" type="date">
+        </div>
+      </div>
+      <div class="field">
+        <label>Брутен приход</label>
+        <div class="amount-wrap"><input id="gross" type="number" placeholder="0.00"></div>
+      </div>
+      <div class="field">
+        <label>Такса на оператора (%)</label>
+        <input id="percent" type="number" value="20">
+      </div>
+      <button class="btn btn-orange" onclick="window.saveWeek()">Запази седмицата</button>
+    </div>
+  </div>
+
+  <!-- EXPENSES -->
+  <div id="expenses" class="page">
+    <div class="section-title">Нов разход</div>
+    <div class="form-card">
+      <h2><span class="icon icon-blue">⛽</span> Разход</h2>
+      <div class="field">
+        <label>Дата</label>
+        <input id="exp_date" type="date">
+      </div>
+      <div class="field">
+        <label>Сума</label>
+        <div class="amount-wrap"><input id="exp_amount" type="number" placeholder="0.00"></div>
+      </div>
+      <div class="field">
+        <label>Категория</label>
+        <input id="exp_cat" placeholder="напр. Гориво, Сервиз...">
+      </div>
+      <div class="field">
+        <label>Бележка</label>
+        <input id="exp_note" placeholder="По избор">
+      </div>
+      <button class="btn btn-blue" onclick="window.addExpense()">Добави разход</button>
+    </div>
+  </div>
+
+  <!-- PAYMENTS -->
+  <div id="payments" class="page">
+    <div class="section-title">Ново плащане</div>
+    <div class="form-card">
+      <h2><span class="icon icon-green">💸</span> Плащане</h2>
+      <div class="field">
+        <label>Период</label>
+        <div class="date-row">
+          <input id="pay_start" type="date">
+          <input id="pay_end" type="date">
+        </div>
+      </div>
+      <div class="field">
+        <label>Сума</label>
+        <div class="amount-wrap"><input id="pay_amount" type="number" placeholder="0.00"></div>
+      </div>
+      <div class="field">
+        <label>Бележка</label>
+        <input id="pay_note" placeholder="По избор">
+      </div>
+      <button class="btn btn-green" onclick="window.addPayment()">Добави плащане</button>
+    </div>
+  </div>
+
+</div>
+
+<!-- TOAST -->
+<div class="toast" id="toast"></div>
+
+<!-- BOTTOM NAV -->
+<div class="nav">
+  <button class="nav-btn active" id="nav-home" onclick="window.show('home')">
+    <div class="nav-icon">🏠</div>Dashboard
+  </button>
+  <button class="nav-btn" id="nav-week" onclick="window.show('week')">
+    <div class="nav-icon">📦</div>Седмица
+  </button>
+  <button class="nav-btn" id="nav-expenses" onclick="window.show('expenses')">
+    <div class="nav-icon">⛽</div>Разход
+  </button>
+  <button class="nav-btn" id="nav-payments" onclick="window.show('payments')">
+    <div class="nav-icon">💸</div>Плащане
+  </button>
+</div>
+
+<script>
+const db = window.supabase.createClient(
+  "https://xkxmsxlpnuhnpcaxazjh.supabase.co",
+  "sb_publishable_fMGDf3RDsyA8ZlVz1yWXjA_pRGpUOzj"
+);
+
+/* TOAST */
+function toast(msg, ok = true) {
+  const t = document.getElementById('toast');
+  t.textContent = (ok ? '✓ ' : '✗ ') + msg;
+  t.style.borderColor = ok ? 'var(--green)' : 'var(--red)';
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2500);
+}
+
+/* NAV */
+window.show = function(id) {
+  document.querySelectorAll('.page').forEach(d => d.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('nav-' + id).classList.add('active');
+};
+
+/* CALC */
+function calc(g, p) {
+  return { fee: +(g * p / 100).toFixed(2), net: +(g - g * p / 100).toFixed(2) };
+}
+
+/* FORMAT DATE */
+function fmtDate(d) {
+  if (!d) return '—';
+  const [y, m, day] = d.split('-');
+  return `${day}.${m}.${y}`;
+}
+
+/* WEEK */
+window.saveWeek = async function() {
+  const g = +document.getElementById('gross').value;
+  const p = +document.getElementById('percent').value;
+  const s = document.getElementById('start').value;
+  const e = document.getElementById('end').value;
+  if (!g || !s || !e) { toast('Попълни всички полета!', false); return; }
+  const c = calc(g, p);
+  const { error } = await db.from('weeks').insert([{
+    start_date: s, end_date: e,
+    gross_income: g, operator_percent: p,
+    operator_fee: c.fee, net_income: c.net
+  }]);
+  if (error) { toast(error.message, false); return; }
+  toast('Седмицата е запазена!');
+  loadDash();
+};
+
+/* EXPENSE */
+window.addExpense = async function() {
+  const w = await getLatestWeek();
+  if (!w) { toast('Първо добави седмица!', false); return; }
+  const { error } = await db.from('expenses').insert([{
+    week_id: w.id,
+    expense_date: document.getElementById('exp_date').value,
+    amount: +document.getElementById('exp_amount').value,
+    category: document.getElementById('exp_cat').value,
+    note: document.getElementById('exp_note').value
+  }]);
+  if (error) { toast(error.message, false); return; }
+  toast('Разходът е добавен!');
+  loadDash();
+};
+
+/* PAYMENT */
+window.addPayment = async function() {
+  const w = await getLatestWeek();
+  if (!w) { toast('Първо добави седмица!', false); return; }
+  const ps = document.getElementById('pay_start').value;
+  const pe = document.getElementById('pay_end').value;
+  if (!ps || !pe) { toast('Въведи начална и крайна дата!', false); return; }
+  const { error } = await db.from('payments').insert([{
+    week_id: w.id,
+    payment_start: ps, payment_end: pe,
+    amount: +document.getElementById('pay_amount').value,
+    note: document.getElementById('pay_note').value
+  }]);
+  if (error) { toast(error.message, false); return; }
+  toast('Плащането е добавено!');
+  loadDash();
+};
+
+/* GET LATEST WEEK */
+async function getLatestWeek() {
+  const { data, error } = await db.from('weeks').select('*').order('created_at', { ascending: false }).limit(1);
+  if (error || !data || data.length === 0) return null;
+  return data[0];
+}
+
+/* DASHBOARD */
+async function loadDash() {
+  const w = await getLatestWeek();
+  const el = document.getElementById('dash');
+
+  if (!w) {
+    el.innerHTML = `
+      <div class="empty">
+        <div class="empty-icon">📭</div>
+        <p>Няма въведена седмица.<br>Добави първата от таб <b>Седмица</b>.</p>
+      </div>`;
+    return;
+  }
+
+  const { data: ex } = await db.from('expenses').select('*').eq('week_id', w.id);
+  const { data: pa } = await db.from('payments').select('*').eq('week_id', w.id);
+
+  const exp    = ex?.reduce((a, b) => a + b.amount, 0) || 0;
+  const pay    = pa?.reduce((a, b) => a + b.amount, 0) || 0;
+  const profit = +(w.net_income - exp).toFixed(2);
+  const diff   = +(pay - profit).toFixed(2);
+  const diffPositive = diff >= 0;
+
+  el.innerHTML = `
+    <div class="period-badge">
+      📅 <span>${fmtDate(w.start_date)}</span> → <span>${fmtDate(w.end_date)}</span>
+    </div>
+
+    <div class="stat-grid">
+      <div class="stat-card">
+        <div class="stat-label">Брутен приход</div>
+        <div class="stat-value">€${w.gross_income}</div>
+        <div class="stat-sub">Такса ${w.operator_percent}% = €${w.operator_fee}</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Нетен приход</div>
+        <div class="stat-value accent">€${w.net_income}</div>
+        <div class="stat-sub">След такса</div>
+      </div>
+
+      <div class="stat-card">
+        <div class="stat-label">Разходи</div>
+        <div class="stat-value" style="color:var(--red)">€${exp.toFixed(2)}</div>
+        <div class="stat-sub">${ex?.length || 0} записа</div>
+      </div>
+      <div class="stat-card ${profit >= 0 ? 'green-card' : 'red-card'}">
+        <div class="stat-label">Печалба</div>
+        <div class="stat-value ${profit >= 0 ? 'green' : 'red'}">€${profit}</div>
+        <div class="stat-sub">Нет − Разходи</div>
+      </div>
+
+      <div class="stat-card full ${diffPositive ? 'green-card' : 'red-card'}">
+        <div class="stat-label">Плащания получени</div>
+        <div class="stat-value ${diffPositive ? 'green' : 'red'}">€${pay.toFixed(2)}</div>
+        <div class="stat-sub">${diffPositive ? '▲ Излишък' : '▼ Дефицит'} €${Math.abs(diff)} спрямо печалбата</div>
+      </div>
+    </div>
+  `;
+}
+
+loadDash();
+</script>
+</body>
+</html>
