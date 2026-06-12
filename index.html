@@ -2,7 +2,7 @@
 <html lang="bg">
 <head>
 <meta charset="UTF-8"/>
-<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0"/>
 <title>Glovo Tracker</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
@@ -10,146 +10,290 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
-  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-  :root {
-    --bg:       #080e1a;
-    --surface:  #111827;
-    --surface2: #1a2540;
-    --border:   #1e2d45;
-    --accent:   #f97316;
-    --green:    #22c55e;
-    --red:      #ef4444;
-    --blue:     #3b82f6;
-    --purple:   #a855f7;
-    --text:     #f1f5f9;
-    --muted:    #64748b;
-    --label:    #94a3b8;
-  }
-  body { font-family:'Inter',sans-serif; background:var(--bg); color:var(--text); min-height:100vh; }
+*, *::before, *::after { box-sizing:border-box; margin:0; padding:0; }
+:root {
+  --bg:       #080e1a;
+  --surface:  #111827;
+  --surface2: #1a2540;
+  --border:   #1e2d45;
+  --accent:   #f97316;
+  --green:    #22c55e;
+  --red:      #ef4444;
+  --blue:     #3b82f6;
+  --text:     #f1f5f9;
+  --muted:    #64748b;
+  --label:    #94a3b8;
+  --nav-h:    65px;
+}
+body { font-family:'Inter',sans-serif; background:var(--bg); color:var(--text); min-height:100vh; -webkit-tap-highlight-color:transparent; }
 
-  /* HEADER */
-  .header { padding:20px 16px 10px; display:flex; align-items:center; gap:10px; }
-  .header-logo { width:36px;height:36px;background:var(--accent);border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:18px; }
-  .header h1 { font-size:18px;font-weight:700;letter-spacing:-0.3px; }
-  .header p  { font-size:11px;color:var(--muted);margin-top:1px; }
+/* ── HEADER ── */
+.header {
+  padding:16px 16px 10px;
+  display:flex; align-items:center; justify-content:space-between;
+  position:sticky; top:0; z-index:40;
+  background:var(--bg);
+  border-bottom:1px solid var(--border);
+}
+.header-left { display:flex; align-items:center; gap:10px; }
+.header-logo { width:34px;height:34px;background:var(--accent);border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:17px;flex-shrink:0; }
+.header h1   { font-size:17px;font-weight:700;letter-spacing:-0.3px; }
+.header p    { font-size:10px;color:var(--muted);margin-top:1px; }
 
-  .container { padding:0 16px 90px; }
-  .page { display:none; }
-  .page.active { display:block; }
+/* ── HAMBURGER ── */
+.hamburger {
+  width:38px;height:38px;border:none;border-radius:10px;
+  background:var(--surface2);cursor:pointer;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;
+  flex-shrink:0;
+}
+.hamburger span {
+  display:block;width:18px;height:2px;background:var(--label);border-radius:2px;
+  transition:all 0.25s;
+}
+.hamburger.open span:nth-child(1) { transform:translateY(7px) rotate(45deg); }
+.hamburger.open span:nth-child(2) { opacity:0; transform:scaleX(0); }
+.hamburger.open span:nth-child(3) { transform:translateY(-7px) rotate(-45deg); }
 
-  .section-title { font-size:13px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.6px;margin:20px 0 10px; }
+/* ── DRAWER ── */
+.drawer-overlay {
+  position:fixed;inset:0;z-index:50;
+  background:rgba(0,0,0,0.6);
+  opacity:0;pointer-events:none;
+  transition:opacity 0.25s;
+}
+.drawer-overlay.open { opacity:1;pointer-events:all; }
 
-  /* STAT GRID */
-  .stat-grid { display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px; }
-  .stat-card { background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:14px; }
-  .stat-card.full { grid-column:1/-1; }
-  .stat-card.green-card { border-color:var(--green);background:rgba(34,197,94,0.07); }
-  .stat-card.red-card   { border-color:var(--red);  background:rgba(239,68,68,0.07);  }
-  .stat-label { font-size:11px;color:var(--muted);font-weight:500;margin-bottom:4px; }
-  .stat-value { font-size:22px;font-weight:700;letter-spacing:-0.5px; }
-  .stat-value.accent { color:var(--accent); }
-  .stat-value.green  { color:var(--green);  }
-  .stat-value.red    { color:var(--red);    }
-  .stat-sub  { font-size:11px;color:var(--muted);margin-top:3px; }
+.drawer {
+  position:fixed;top:0;right:0;bottom:0;
+  width:75%;max-width:300px;
+  background:var(--surface);
+  z-index:51;
+  transform:translateX(100%);
+  transition:transform 0.28s cubic-bezier(.4,0,.2,1);
+  display:flex;flex-direction:column;
+  border-left:1px solid var(--border);
+  overflow-y:auto;
+}
+.drawer.open { transform:translateX(0); }
 
-  .period-badge { display:inline-flex;align-items:center;gap:6px;background:var(--surface2);border:1px solid var(--border);border-radius:20px;padding:5px 12px;font-size:12px;color:var(--label);margin-bottom:14px; }
-  .period-badge span { color:var(--text);font-weight:600; }
+.drawer-header {
+  padding:20px 20px 16px;
+  border-bottom:1px solid var(--border);
+  display:flex;align-items:center;gap:10px;
+}
+.drawer-logo { width:32px;height:32px;background:var(--accent);border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:16px; }
+.drawer-title { font-size:15px;font-weight:700; }
+.drawer-sub   { font-size:11px;color:var(--muted); }
 
-  /* FORM */
-  .form-card { background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:16px;margin-bottom:12px; }
-  .form-card h2 { font-size:15px;font-weight:600;margin-bottom:14px;display:flex;align-items:center;gap:8px; }
-  .form-card h2 .icon { width:28px;height:28px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:14px; }
-  .icon-orange { background:rgba(249,115,22,0.15); }
-  .icon-green  { background:rgba(34,197,94,0.15);  }
-  .icon-blue   { background:rgba(59,130,246,0.15); }
+.drawer-section { padding:12px 12px 4px; }
+.drawer-section-label { font-size:10px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.6px;padding:0 8px;margin-bottom:4px; }
 
-  .field { margin-bottom:10px; }
-  .field label { display:block;font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:5px; }
-  .field input { width:100%;background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:11px 13px;color:var(--text);font-size:14px;font-family:'Inter',sans-serif;transition:border-color 0.15s;outline:none; }
-  .field input:focus { border-color:var(--accent); }
-  .date-row { display:grid;grid-template-columns:1fr 1fr;gap:8px; }
-  .amount-wrap { position:relative; }
-  .amount-wrap input { padding-left:30px; }
-  .amount-wrap::before { content:'€';position:absolute;left:13px;top:50%;transform:translateY(-50%);color:var(--muted);font-size:14px;font-weight:600; }
+.drawer-item {
+  display:flex;align-items:center;gap:12px;
+  padding:12px 10px;border-radius:12px;
+  border:none;background:none;cursor:pointer;
+  color:var(--label);font-family:'Inter',sans-serif;font-size:14px;font-weight:500;
+  width:100%;text-align:left;
+  transition:background 0.15s,color 0.15s;
+}
+.drawer-item:active { background:var(--surface2); }
+.drawer-item.active { background:rgba(249,115,22,0.1);color:var(--accent); }
+.drawer-item .di-icon {
+  width:36px;height:36px;border-radius:10px;
+  background:var(--surface2);display:flex;align-items:center;justify-content:center;
+  font-size:16px;flex-shrink:0;transition:background 0.15s;
+}
+.drawer-item.active .di-icon { background:rgba(249,115,22,0.15); }
+.drawer-item .di-label { flex:1; }
+.drawer-item .di-arrow { font-size:11px;color:var(--border); }
 
-  .btn { width:100%;padding:13px;border:none;border-radius:12px;font-size:14px;font-weight:600;font-family:'Inter',sans-serif;cursor:pointer;transition:opacity 0.15s,transform 0.1s;margin-top:4px; }
-  .btn:active { transform:scale(0.98);opacity:0.85; }
-  .btn-orange { background:var(--accent);color:white; }
-  .btn-green  { background:var(--green); color:white; }
-  .btn-blue   { background:var(--blue);  color:white; }
-  .btn-row    { display:grid;grid-template-columns:1fr 1fr;gap:8px; }
+/* ── BOTTOM NAV (4 главни таба) ── */
+.nav {
+  position:fixed;bottom:0;left:0;right:0;
+  height:var(--nav-h);
+  background:var(--surface);
+  border-top:1px solid var(--border);
+  display:flex;justify-content:space-around;align-items:center;
+  padding-bottom:env(safe-area-inset-bottom);
+  z-index:40;
+}
+.nav-btn {
+  flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;
+  background:none;border:none;cursor:pointer;padding:6px 0;
+  color:var(--muted);font-family:'Inter',sans-serif;font-size:10px;font-weight:500;
+  transition:color 0.15s;
+}
+.nav-btn .nav-icon {
+  width:30px;height:30px;border-radius:9px;
+  display:flex;align-items:center;justify-content:center;font-size:17px;
+  transition:background 0.15s;
+}
+.nav-btn.active        { color:var(--accent); }
+.nav-btn.active .nav-icon { background:rgba(249,115,22,0.15); }
 
-  .empty { text-align:center;padding:40px 20px;color:var(--muted); }
-  .empty-icon { font-size:36px;margin-bottom:10px; }
-  .empty p { font-size:13px;line-height:1.5; }
+/* ── CONTAINER ── */
+.container { padding:0 16px calc(var(--nav-h) + 16px); }
 
-  /* TOAST */
-  .toast { position:fixed;bottom:85px;left:50%;transform:translateX(-50%) translateY(20px);background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:10px 18px;border-radius:20px;font-size:13px;font-weight:500;opacity:0;transition:opacity 0.2s,transform 0.2s;pointer-events:none;white-space:nowrap;z-index:100; }
-  .toast.show { opacity:1;transform:translateX(-50%) translateY(0); }
+/* ── PAGES ── */
+.page { display:none; }
+.page.active { display:block; }
 
-  /* NAV */
-  .nav { position:fixed;bottom:0;left:0;right:0;height:70px;background:var(--surface);border-top:1px solid var(--border);display:flex;justify-content:space-around;align-items:center; }
-  .nav-btn { flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;background:none;border:none;cursor:pointer;padding:8px 0;color:var(--muted);font-family:'Inter',sans-serif;font-size:10px;font-weight:500;transition:color 0.15s; }
-  .nav-btn .nav-icon { width:28px;height:28px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:16px;transition:background 0.15s; }
-  .nav-btn.active { color:var(--accent); }
-  .nav-btn.active .nav-icon { background:rgba(249,115,22,0.15); }
+/* ── TYPOGRAPHY ── */
+.section-title { font-size:12px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.6px;margin:20px 0 10px; }
 
-  /* CHARTS */
-  .chart-card { background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:16px;margin-bottom:14px; }
-  .chart-card h3 { font-size:14px;font-weight:600;margin-bottom:4px; }
-  .chart-sub { font-size:11px;color:var(--muted);margin-bottom:14px; }
-  .chart-wrap { position:relative;height:200px; }
+/* ── STAT GRID ── */
+.stat-grid { display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px; }
+.stat-card { background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:14px; }
+.stat-card.full { grid-column:1/-1; }
+.stat-card.green-card { border-color:var(--green);background:rgba(34,197,94,0.07); }
+.stat-card.red-card   { border-color:var(--red);  background:rgba(239,68,68,0.07);  }
+.stat-label { font-size:11px;color:var(--muted);font-weight:500;margin-bottom:4px; }
+.stat-value { font-size:21px;font-weight:700;letter-spacing:-0.5px; }
+.stat-value.accent { color:var(--accent); }
+.stat-value.green  { color:var(--green); }
+.stat-value.red    { color:var(--red); }
+.stat-sub { font-size:11px;color:var(--muted);margin-top:3px; }
 
-  /* CATEGORY LIST */
-  .cat-list { margin-top:12px; }
-  .cat-row { display:flex;align-items:center;gap:10px;margin-bottom:10px; }
-  .cat-dot { width:10px;height:10px;border-radius:50%;flex-shrink:0; }
-  .cat-name { flex:1;font-size:13px; }
-  .cat-bar-wrap { width:80px;height:6px;background:var(--border);border-radius:4px;overflow:hidden; }
-  .cat-bar { height:100%;border-radius:4px;transition:width 0.4s; }
-  .cat-amt { font-size:13px;font-weight:600;min-width:50px;text-align:right; }
+.period-badge { display:inline-flex;align-items:center;gap:6px;background:var(--surface2);border:1px solid var(--border);border-radius:20px;padding:5px 12px;font-size:12px;color:var(--label);margin-bottom:14px; }
+.period-badge span { color:var(--text);font-weight:600; }
 
-  /* SKELETON */
-  .skeleton { background:linear-gradient(90deg,var(--surface) 25%,var(--surface2) 50%,var(--surface) 75%);background-size:200% 100%;animation:shimmer 1.2s infinite;border-radius:8px;height:16px;margin:6px 0; }
-  @keyframes shimmer { 0%{background-position:200% 0} 100%{background-position:-200% 0} }
+/* ── FORMS ── */
+.form-card { background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:16px;margin-bottom:12px; }
+.form-card h2 { font-size:15px;font-weight:600;margin-bottom:14px;display:flex;align-items:center;gap:8px; }
+.form-card h2 .icon { width:28px;height:28px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:14px; }
+.icon-orange { background:rgba(249,115,22,0.15); }
+.icon-green  { background:rgba(34,197,94,0.15); }
+.icon-blue   { background:rgba(59,130,246,0.15); }
 
-  /* SEGMENT CONTROL */
-  .seg { display:flex;background:var(--surface2);border-radius:10px;padding:3px;gap:3px;margin-bottom:16px; }
-  .seg-btn { flex:1;padding:7px;border:none;border-radius:8px;background:none;color:var(--muted);font-size:12px;font-weight:600;font-family:'Inter',sans-serif;cursor:pointer;transition:all 0.15s; }
-  .seg-btn.active { background:var(--surface);color:var(--text);box-shadow:0 1px 4px rgba(0,0,0,0.4); }
+.field { margin-bottom:12px; }
+.field label { display:block;font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:5px; }
+.field input {
+  width:100%;background:var(--bg);border:1px solid var(--border);border-radius:10px;
+  padding:13px;color:var(--text);font-size:16px;/* 16px prevents iOS zoom */
+  font-family:'Inter',sans-serif;transition:border-color 0.15s;outline:none;
+}
+.field input:focus { border-color:var(--accent); }
+.date-row { display:grid;grid-template-columns:1fr 1fr;gap:8px; }
+.amount-wrap { position:relative; }
+.amount-wrap input { padding-left:28px; }
+.amount-wrap::before { content:'€';position:absolute;left:13px;top:50%;transform:translateY(-50%);color:var(--muted);font-size:14px;font-weight:600;pointer-events:none; }
 
-  /* RECORDS */
-  .rec-item { background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:13px 14px;margin-bottom:8px;display:flex;align-items:center;gap:12px; }
-  .rec-icon { width:38px;height:38px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:17px;flex-shrink:0; }
-  .rec-icon.inc { background:rgba(249,115,22,0.13); }
-  .rec-icon.exp { background:rgba(59,130,246,0.13); }
-  .rec-icon.pay { background:rgba(34,197,94,0.13); }
-  .rec-body { flex:1;min-width:0; }
-  .rec-title { font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis; }
-  .rec-sub   { font-size:11px;color:var(--muted);margin-top:2px; }
-  .rec-amt   { font-size:15px;font-weight:700;flex-shrink:0; }
-  .rec-amt.inc { color:var(--accent); }
-  .rec-amt.exp { color:var(--red); }
-  .rec-amt.pay { color:var(--green); }
-  .rec-count { font-size:11px;color:var(--muted);text-align:center;padding:10px 0 4px; }
+.btn { width:100%;padding:14px;border:none;border-radius:12px;font-size:15px;font-weight:600;font-family:'Inter',sans-serif;cursor:pointer;transition:opacity 0.15s,transform 0.1s;margin-top:4px; }
+.btn:active { transform:scale(0.98);opacity:0.85; }
+.btn-orange { background:var(--accent);color:white; }
+.btn-green  { background:var(--green); color:white; }
+.btn-blue   { background:var(--blue);  color:white; }
+.btn-row    { display:grid;grid-template-columns:1fr 1fr;gap:8px; }
+
+/* ── CHARTS ── */
+.chart-card { background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:16px;margin-bottom:14px; }
+.chart-card h3 { font-size:14px;font-weight:600;margin-bottom:4px; }
+.chart-sub { font-size:11px;color:var(--muted);margin-bottom:14px; }
+.chart-wrap { position:relative;height:200px; }
+.cat-list { margin-top:12px; }
+.cat-row { display:flex;align-items:center;gap:10px;margin-bottom:10px; }
+.cat-dot { width:10px;height:10px;border-radius:50%;flex-shrink:0; }
+.cat-name { flex:1;font-size:13px; }
+.cat-bar-wrap { width:70px;height:6px;background:var(--border);border-radius:4px;overflow:hidden; }
+.cat-bar { height:100%;border-radius:4px;transition:width 0.4s; }
+.cat-amt { font-size:13px;font-weight:600;min-width:52px;text-align:right; }
+
+/* ── SEG ── */
+.seg { display:flex;background:var(--surface2);border-radius:10px;padding:3px;gap:3px;margin-bottom:16px; }
+.seg-btn { flex:1;padding:8px 4px;border:none;border-radius:8px;background:none;color:var(--muted);font-size:12px;font-weight:600;font-family:'Inter',sans-serif;cursor:pointer;transition:all 0.15s; }
+.seg-btn.active { background:var(--surface);color:var(--text);box-shadow:0 1px 4px rgba(0,0,0,0.4); }
+
+/* ── RECORDS ── */
+.rec-item { background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:13px 14px;margin-bottom:8px;display:flex;align-items:center;gap:12px; }
+.rec-icon { width:40px;height:40px;border-radius:11px;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0; }
+.rec-icon.inc { background:rgba(249,115,22,0.13); }
+.rec-icon.exp { background:rgba(59,130,246,0.13); }
+.rec-icon.pay { background:rgba(34,197,94,0.13); }
+.rec-body { flex:1;min-width:0; }
+.rec-title { font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis; }
+.rec-sub   { font-size:11px;color:var(--muted);margin-top:2px; }
+.rec-amt   { font-size:15px;font-weight:700;flex-shrink:0; }
+.rec-amt.inc { color:var(--accent); }
+.rec-amt.exp { color:var(--red); }
+.rec-amt.pay { color:var(--green); }
+.rec-count { font-size:11px;color:var(--muted);text-align:center;padding:8px 0; }
+
+/* ── EMPTY / SKELETON ── */
+.empty { text-align:center;padding:50px 20px;color:var(--muted); }
+.empty-icon { font-size:40px;margin-bottom:12px; }
+.empty p { font-size:13px;line-height:1.6; }
+.skeleton { background:linear-gradient(90deg,var(--surface) 25%,var(--surface2) 50%,var(--surface) 75%);background-size:200% 100%;animation:shimmer 1.2s infinite;border-radius:8px;height:16px;margin:6px 0; }
+@keyframes shimmer { 0%{background-position:200% 0} 100%{background-position:-200% 0} }
+
+/* ── TOAST ── */
+.toast { position:fixed;bottom:calc(var(--nav-h) + 12px);left:50%;transform:translateX(-50%) translateY(20px);background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:10px 18px;border-radius:20px;font-size:13px;font-weight:500;opacity:0;transition:opacity 0.2s,transform 0.2s;pointer-events:none;white-space:nowrap;z-index:99; }
+.toast.show { opacity:1;transform:translateX(-50%) translateY(0); }
 </style>
 </head>
 <body>
 
+<!-- HEADER -->
 <div class="header">
-  <div class="header-logo">🛵</div>
-  <div>
-    <h1>Glovo Tracker</h1>
-    <p>Финансово проследяване</p>
+  <div class="header-left">
+    <div class="header-logo">🛵</div>
+    <div>
+      <h1>Glovo Tracker</h1>
+      <p>Финансово проследяване</p>
+    </div>
+  </div>
+  <button class="hamburger" id="hamburger" onclick="window.toggleDrawer()">
+    <span></span><span></span><span></span>
+  </button>
+</div>
+
+<!-- DRAWER OVERLAY -->
+<div class="drawer-overlay" id="drawer-overlay" onclick="window.closeDrawer()"></div>
+
+<!-- DRAWER -->
+<div class="drawer" id="drawer">
+  <div class="drawer-header">
+    <div class="drawer-logo">🛵</div>
+    <div>
+      <div class="drawer-title">Glovo Tracker</div>
+      <div class="drawer-sub">Навигация</div>
+    </div>
+  </div>
+
+  <div class="drawer-section">
+    <div class="drawer-section-label">Преглед</div>
+    <button class="drawer-item active" id="di-home" onclick="window.show('home')">
+      <div class="di-icon">🏠</div><span class="di-label">Dashboard</span><span class="di-arrow">›</span>
+    </button>
+    <button class="drawer-item" id="di-records" onclick="window.show('records')">
+      <div class="di-icon">📋</div><span class="di-label">Всички записи</span><span class="di-arrow">›</span>
+    </button>
+    <button class="drawer-item" id="di-charts" onclick="window.show('charts')">
+      <div class="di-icon">📊</div><span class="di-label">Анализ & Графики</span><span class="di-arrow">›</span>
+    </button>
+  </div>
+
+  <div class="drawer-section">
+    <div class="drawer-section-label">Въвеждане</div>
+    <button class="drawer-item" id="di-week" onclick="window.show('week')">
+      <div class="di-icon">📦</div><span class="di-label">Нова седмица</span><span class="di-arrow">›</span>
+    </button>
+    <button class="drawer-item" id="di-expenses" onclick="window.show('expenses')">
+      <div class="di-icon">⛽</div><span class="di-label">Добави разход</span><span class="di-arrow">›</span>
+    </button>
+    <button class="drawer-item" id="di-payments" onclick="window.show('payments')">
+      <div class="di-icon">💸</div><span class="di-label">Добави плащане</span><span class="di-arrow">›</span>
+    </button>
   </div>
 </div>
 
+<!-- PAGES -->
 <div class="container">
 
-  <!-- DASHBOARD -->
+  <!-- HOME -->
   <div id="home" class="page active">
     <div id="dash">
-      <div class="skeleton" style="width:60%;height:12px"></div>
+      <div class="skeleton" style="width:55%;height:12px;margin-top:20px"></div>
       <div class="stat-grid" style="margin-top:14px">
         <div class="stat-card"><div class="skeleton"></div><div class="skeleton" style="width:70%"></div></div>
         <div class="stat-card"><div class="skeleton"></div><div class="skeleton" style="width:70%"></div></div>
@@ -158,16 +302,29 @@
     </div>
   </div>
 
+  <!-- RECORDS -->
+  <div id="records" class="page">
+    <div class="section-title">Всички записи</div>
+    <div class="seg" id="rec-seg">
+      <button class="seg-btn active" onclick="window.filterRecords('all',this)">Всички</button>
+      <button class="seg-btn" onclick="window.filterRecords('inc',this)">📦 Приходи</button>
+      <button class="seg-btn" onclick="window.filterRecords('exp',this)">⛽ Разходи</button>
+      <button class="seg-btn" onclick="window.filterRecords('pay',this)">💸 Плащания</button>
+    </div>
+    <div id="rec-list">
+      <div class="skeleton" style="height:62px;border-radius:14px;margin-bottom:8px"></div>
+      <div class="skeleton" style="height:62px;border-radius:14px;margin-bottom:8px"></div>
+      <div class="skeleton" style="height:62px;border-radius:14px"></div>
+    </div>
+  </div>
+
   <!-- CHARTS -->
   <div id="charts" class="page">
     <div class="section-title">Анализ</div>
-
     <div class="seg">
-      <button class="seg-btn active" onclick="window.switchChart('income')">📈 Приходи</button>
-      <button class="seg-btn" onclick="window.switchChart('expenses')">⛽ Разходи</button>
+      <button class="seg-btn active" onclick="window.switchChart('income',this)">📈 Приходи</button>
+      <button class="seg-btn" onclick="window.switchChart('expenses',this)">⛽ Разходи</button>
     </div>
-
-    <!-- INCOME CHART -->
     <div id="chart-income">
       <div class="chart-card">
         <h3>Нетен приход по седмици</h3>
@@ -180,8 +337,6 @@
         <div class="chart-wrap"><canvas id="grossNetChart"></canvas></div>
       </div>
     </div>
-
-    <!-- EXPENSE CHART -->
     <div id="chart-expenses" style="display:none">
       <div class="chart-card">
         <h3>Разходи по категории</h3>
@@ -195,8 +350,6 @@
         <div class="chart-wrap"><canvas id="expWeekChart"></canvas></div>
       </div>
     </div>
-
-    <!-- EXPORT -->
     <div class="section-title">Експорт</div>
     <div class="btn-row">
       <button class="btn btn-blue" onclick="window.exportPDF()">📄 PDF отчет</button>
@@ -210,19 +363,20 @@
     <div class="form-card">
       <h2><span class="icon icon-orange">📦</span> Период</h2>
       <div class="field">
-        <label>От — До</label>
-        <div class="date-row">
-          <input id="start" type="date">
-          <input id="end" type="date">
-        </div>
+        <label>От</label>
+        <input id="start" type="date">
+      </div>
+      <div class="field">
+        <label>До</label>
+        <input id="end" type="date">
       </div>
       <div class="field">
         <label>Брутен приход</label>
-        <div class="amount-wrap"><input id="gross" type="number" placeholder="0.00"></div>
+        <div class="amount-wrap"><input id="gross" type="number" inputmode="decimal" placeholder="0.00"></div>
       </div>
       <div class="field">
         <label>Такса на оператора (%)</label>
-        <input id="percent" type="number" value="20">
+        <input id="percent" type="number" inputmode="decimal" value="20">
       </div>
       <button class="btn btn-orange" onclick="window.saveWeek()">Запази седмицата</button>
     </div>
@@ -239,15 +393,15 @@
       </div>
       <div class="field">
         <label>Сума</label>
-        <div class="amount-wrap"><input id="exp_amount" type="number" placeholder="0.00"></div>
+        <div class="amount-wrap"><input id="exp_amount" type="number" inputmode="decimal" placeholder="0.00"></div>
       </div>
       <div class="field">
         <label>Категория</label>
-        <input id="exp_cat" placeholder="напр. Гориво, Сервиз...">
+        <input id="exp_cat" type="text" placeholder="напр. Гориво, Сервиз...">
       </div>
       <div class="field">
         <label>Бележка</label>
-        <input id="exp_note" placeholder="По избор">
+        <input id="exp_note" type="text" placeholder="По избор">
       </div>
       <button class="btn btn-blue" onclick="window.addExpense()">Добави разход</button>
     </div>
@@ -259,62 +413,43 @@
     <div class="form-card">
       <h2><span class="icon icon-green">💸</span> Плащане</h2>
       <div class="field">
-        <label>Период</label>
-        <div class="date-row">
-          <input id="pay_start" type="date">
-          <input id="pay_end" type="date">
-        </div>
+        <label>Период от</label>
+        <input id="pay_start" type="date">
+      </div>
+      <div class="field">
+        <label>Период до</label>
+        <input id="pay_end" type="date">
       </div>
       <div class="field">
         <label>Сума</label>
-        <div class="amount-wrap"><input id="pay_amount" type="number" placeholder="0.00"></div>
+        <div class="amount-wrap"><input id="pay_amount" type="number" inputmode="decimal" placeholder="0.00"></div>
       </div>
       <div class="field">
         <label>Бележка</label>
-        <input id="pay_note" placeholder="По избор">
+        <input id="pay_note" type="text" placeholder="По избор">
       </div>
       <button class="btn btn-green" onclick="window.addPayment()">Добави плащане</button>
-    </div>
-
-  <!-- RECORDS -->
-  <div id="records" class="page">
-    <div class="section-title">Всички записи</div>
-    <div class="seg" id="rec-seg">
-      <button class="seg-btn active" onclick="window.filterRecords('all',this)">Всички</button>
-      <button class="seg-btn" onclick="window.filterRecords('inc',this)">📦 Приходи</button>
-      <button class="seg-btn" onclick="window.filterRecords('exp',this)">⛽ Разходи</button>
-      <button class="seg-btn" onclick="window.filterRecords('pay',this)">💸 Плащания</button>
-    </div>
-    <div id="rec-list">
-      <div class="skeleton" style="height:60px;border-radius:14px;margin-bottom:8px"></div>
-      <div class="skeleton" style="height:60px;border-radius:14px;margin-bottom:8px"></div>
-      <div class="skeleton" style="height:60px;border-radius:14px"></div>
     </div>
   </div>
 
 </div>
 
+<!-- TOAST -->
 <div class="toast" id="toast"></div>
 
-<!-- NAV — 6 tabs -->
+<!-- BOTTOM NAV (4 main) -->
 <div class="nav">
   <button class="nav-btn active" id="nav-home" onclick="window.show('home')">
     <div class="nav-icon">🏠</div>Home
   </button>
-  <button class="nav-btn" id="nav-charts" onclick="window.show('charts')">
-    <div class="nav-icon">📊</div>Анализ
-  </button>
   <button class="nav-btn" id="nav-records" onclick="window.show('records')">
     <div class="nav-icon">📋</div>Записи
   </button>
-  <button class="nav-btn" id="nav-week" onclick="window.show('week')">
-    <div class="nav-icon">📦</div>Седмица
+  <button class="nav-btn" id="nav-charts" onclick="window.show('charts')">
+    <div class="nav-icon">📊</div>Анализ
   </button>
-  <button class="nav-btn" id="nav-expenses" onclick="window.show('expenses')">
-    <div class="nav-icon">⛽</div>Разход
-  </button>
-  <button class="nav-btn" id="nav-payments" onclick="window.show('payments')">
-    <div class="nav-icon">💸</div>Плащане
+  <button class="nav-btn" id="nav-menu" onclick="window.toggleDrawer()">
+    <div class="nav-icon">☰</div>Меню
   </button>
 </div>
 
@@ -324,191 +459,150 @@ const db = window.supabase.createClient(
   "sb_publishable_fMGDf3RDsyA8ZlVz1yWXjA_pRGpUOzj"
 );
 
-// ── chart instances ──
 let chartIncome, chartGrossNet, chartCat, chartExpWeek;
-
 const CAT_COLORS = ['#f97316','#22c55e','#3b82f6','#a855f7','#ec4899','#eab308','#06b6d4','#ef4444'];
+let allRecords = [];
 
 // ── TOAST ──
-function toast(msg, ok=true){
-  const t=document.getElementById('toast');
-  t.textContent=(ok?'✓ ':'✗ ')+msg;
-  t.style.borderColor=ok?'var(--green)':'var(--red)';
+function toast(msg, ok=true) {
+  const t = document.getElementById('toast');
+  t.textContent = (ok ? '✓ ' : '✗ ') + msg;
+  t.style.borderColor = ok ? 'var(--green)' : 'var(--red)';
   t.classList.add('show');
-  setTimeout(()=>t.classList.remove('show'),2500);
+  setTimeout(() => t.classList.remove('show'), 2500);
 }
 
-// ── NAV ──
-window.show = function(id){
-  document.querySelectorAll('.page').forEach(d=>d.classList.remove('active'));
-  document.getElementById(id).classList.add('active');
-  document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
-  document.getElementById('nav-'+id).classList.add('active');
-  if(id==='charts')  loadCharts();
-  if(id==='records') loadRecords();
+// ── DRAWER ──
+window.toggleDrawer = function() {
+  const d = document.getElementById('drawer');
+  const o = document.getElementById('drawer-overlay');
+  const h = document.getElementById('hamburger');
+  const open = d.classList.contains('open');
+  d.classList.toggle('open', !open);
+  o.classList.toggle('open', !open);
+  h.classList.toggle('open', !open);
+};
+window.closeDrawer = function() {
+  document.getElementById('drawer').classList.remove('open');
+  document.getElementById('drawer-overlay').classList.remove('open');
+  document.getElementById('hamburger').classList.remove('open');
 };
 
-// ── SEGMENT ──
-window.switchChart = function(tab){
-  document.querySelectorAll('.seg-btn').forEach(b=>b.classList.remove('active'));
-  event.target.classList.add('active');
-  document.getElementById('chart-income').style.display   = tab==='income'   ? 'block' : 'none';
-  document.getElementById('chart-expenses').style.display = tab==='expenses' ? 'block' : 'none';
+// ── NAV + DRAWER SYNC ──
+window.show = function(id) {
+  document.querySelectorAll('.page').forEach(d => d.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+
+  // bottom nav active
+  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+  const nb = document.getElementById('nav-' + id);
+  if (nb) nb.classList.add('active');
+  else document.getElementById('nav-menu').classList.add('active');
+
+  // drawer active
+  document.querySelectorAll('.drawer-item').forEach(b => b.classList.remove('active'));
+  const di = document.getElementById('di-' + id);
+  if (di) di.classList.add('active');
+
+  window.closeDrawer();
+
+  if (id === 'charts')  loadCharts();
+  if (id === 'records') loadRecords();
+};
+
+// ── SEGMENT chart ──
+window.switchChart = function(tab, btn) {
+  document.querySelectorAll('#charts .seg-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('chart-income').style.display   = tab === 'income'   ? 'block' : 'none';
+  document.getElementById('chart-expenses').style.display = tab === 'expenses' ? 'block' : 'none';
 };
 
 // ── HELPERS ──
-function calc(g,p){ return {fee:+(g*p/100).toFixed(2), net:+(g-g*p/100).toFixed(2)}; }
-function fmtDate(d){ if(!d)return'—'; const[y,m,day]=d.split('-'); return`${day}.${m}.${y}`; }
-function fmtShort(d){ if(!d)return''; const[,m,day]=d.split('-'); return`${day}.${m}`; }
-function destroyChart(c){ if(c){c.destroy();} return null; }
+function calc(g, p) { return { fee: +(g*p/100).toFixed(2), net: +(g - g*p/100).toFixed(2) }; }
+function fmtDate(d)  { if (!d) return '—'; const [y,m,day] = d.split('-'); return `${day}.${m}.${y}`; }
+function fmtShort(d) { if (!d) return '';  const [,m,day]  = d.split('-'); return `${day}.${m}`; }
+function destroyChart(c) { if (c) c.destroy(); return null; }
 
-// ── SUPABASE HELPERS ──
-async function getLatestWeek(){
-  const{data,error}=await db.from('weeks').select('*').order('created_at',{ascending:false}).limit(1);
-  if(error||!data||!data.length)return null;
+// ── DB HELPERS ──
+async function getLatestWeek() {
+  const { data, error } = await db.from('weeks').select('*').order('created_at', { ascending:false }).limit(1);
+  if (error || !data || !data.length) return null;
   return data[0];
 }
-async function getAllWeeks(){
-  const{data}=await db.from('weeks').select('*').order('start_date',{ascending:true});
-  return data||[];
+async function getAllWeeks() {
+  const { data } = await db.from('weeks').select('*').order('start_date', { ascending:true });
+  return data || [];
 }
-async function getAllExpenses(){
-  const{data}=await db.from('expenses').select('*').order('expense_date',{ascending:true});
-  return data||[];
+async function getAllExpenses() {
+  const { data } = await db.from('expenses').select('*').order('expense_date', { ascending:false });
+  return data || [];
 }
 
 // ── SAVE WEEK ──
-window.saveWeek = async function(){
-  const g=+document.getElementById('gross').value;
-  const p=+document.getElementById('percent').value;
-  const s=document.getElementById('start').value;
-  const e=document.getElementById('end').value;
-  if(!g||!s||!e){toast('Попълни всички полета!',false);return;}
-  const c=calc(g,p);
-  const{error}=await db.from('weeks').insert([{start_date:s,end_date:e,gross_income:g,operator_percent:p,operator_fee:c.fee,net_income:c.net}]);
-  if(error){toast(error.message,false);return;}
+window.saveWeek = async function() {
+  const g = +document.getElementById('gross').value;
+  const p = +document.getElementById('percent').value;
+  const s = document.getElementById('start').value;
+  const e = document.getElementById('end').value;
+  if (!g || !s || !e) { toast('Попълни всички полета!', false); return; }
+  const c = calc(g, p);
+  const { error } = await db.from('weeks').insert([{ start_date:s, end_date:e, gross_income:g, operator_percent:p, operator_fee:c.fee, net_income:c.net }]);
+  if (error) { toast(error.message, false); return; }
   toast('Седмицата е запазена!');
   loadDash();
 };
 
-// ── ALL RECORDS DATA CACHE ──
-let allRecords = [];
-
-async function loadRecords() {
-  const weeks   = await getAllWeeks();
-  const allExp  = await getAllExpenses();
-  const {data: allPay} = await db.from('payments').select('*').order('payment_start', {ascending:false});
-
-  // Build unified list
-  allRecords = [];
-
-  for (const w of weeks) {
-    allRecords.push({
-      type: 'inc',
-      icon: '📦',
-      title: `Приход ${fmtDate(w.start_date)} → ${fmtDate(w.end_date)}`,
-      sub: `Брутен €${w.gross_income} · Такса ${w.operator_percent}%`,
-      amount: w.net_income,
-      date: w.start_date
-    });
-  }
-
-  for (const e of allExp) {
-    allRecords.push({
-      type: 'exp',
-      icon: '⛽',
-      title: e.category || 'Разход',
-      sub: fmtDate(e.expense_date) + (e.note ? ' · ' + e.note : ''),
-      amount: e.amount,
-      date: e.expense_date
-    });
-  }
-
-  for (const p of (allPay || [])) {
-    allRecords.push({
-      type: 'pay',
-      icon: '💸',
-      title: `Плащане ${fmtDate(p.payment_start)} → ${fmtDate(p.payment_end)}`,
-      sub: p.note || '',
-      amount: p.amount,
-      date: p.payment_start
-    });
-  }
-
-  // Sort newest first
-  allRecords.sort((a,b) => (b.date||'').localeCompare(a.date||''));
-
-  renderRecords('all');
-}
-
-function renderRecords(filter) {
-  const list = filter === 'all' ? allRecords : allRecords.filter(r => r.type === filter);
-  const el = document.getElementById('rec-list');
-
-  if (!list.length) {
-    el.innerHTML = `<div class="empty"><div class="empty-icon">📭</div><p>Няма записи.</p></div>`;
-    return;
-  }
-
-  const sign = { inc: '+', exp: '-', pay: '+' };
-  el.innerHTML = list.map(r => `
-    <div class="rec-item">
-      <div class="rec-icon ${r.type}">${r.icon}</div>
-      <div class="rec-body">
-        <div class="rec-title">${r.title}</div>
-        ${r.sub ? `<div class="rec-sub">${r.sub}</div>` : ''}
-      </div>
-      <div class="rec-amt ${r.type}">${sign[r.type]}€${(+r.amount).toFixed(2)}</div>
-    </div>
-  `).join('') + `<div class="rec-count">${list.length} записа</div>`;
-}
-
-window.filterRecords = function(filter, btn) {
-  document.querySelectorAll('#rec-seg .seg-btn').forEach(b => b.classList.remove('active'));
-  btn.classList.add('active');
-  renderRecords(filter);
-};
-
 // ── ADD EXPENSE ──
-window.addExpense = async function(){
-  const w=await getLatestWeek();
-  if(!w){toast('Първо добави седмица!',false);return;}
-  const{error}=await db.from('expenses').insert([{week_id:w.id,expense_date:document.getElementById('exp_date').value,amount:+document.getElementById('exp_amount').value,category:document.getElementById('exp_cat').value,note:document.getElementById('exp_note').value}]);
-  if(error){toast(error.message,false);return;}
+window.addExpense = async function() {
+  const w = await getLatestWeek();
+  if (!w) { toast('Първо добави седмица!', false); return; }
+  const { error } = await db.from('expenses').insert([{
+    week_id: w.id,
+    expense_date: document.getElementById('exp_date').value,
+    amount: +document.getElementById('exp_amount').value,
+    category: document.getElementById('exp_cat').value,
+    note: document.getElementById('exp_note').value
+  }]);
+  if (error) { toast(error.message, false); return; }
   toast('Разходът е добавен!');
   loadDash();
 };
 
 // ── ADD PAYMENT ──
-window.addPayment = async function(){
-  const w=await getLatestWeek();
-  if(!w){toast('Първо добави седмица!',false);return;}
-  const ps=document.getElementById('pay_start').value;
-  const pe=document.getElementById('pay_end').value;
-  if(!ps||!pe){toast('Въведи начална и крайна дата!',false);return;}
-  const{error}=await db.from('payments').insert([{week_id:w.id,payment_start:ps,payment_end:pe,amount:+document.getElementById('pay_amount').value,note:document.getElementById('pay_note').value}]);
-  if(error){toast(error.message,false);return;}
+window.addPayment = async function() {
+  const w = await getLatestWeek();
+  if (!w) { toast('Първо добави седмица!', false); return; }
+  const ps = document.getElementById('pay_start').value;
+  const pe = document.getElementById('pay_end').value;
+  if (!ps || !pe) { toast('Въведи начална и крайна дата!', false); return; }
+  const { error } = await db.from('payments').insert([{
+    week_id: w.id, payment_start:ps, payment_end:pe,
+    amount: +document.getElementById('pay_amount').value,
+    note: document.getElementById('pay_note').value
+  }]);
+  if (error) { toast(error.message, false); return; }
   toast('Плащането е добавено!');
   loadDash();
 };
 
 // ── DASHBOARD ──
-async function loadDash(){
-  const w=await getLatestWeek();
-  const el=document.getElementById('dash');
-  if(!w){
-    el.innerHTML=`<div class="empty"><div class="empty-icon">📭</div><p>Няма въведена седмица.<br>Добави първата от таб <b>Седмица</b>.</p></div>`;
+async function loadDash() {
+  const w = await getLatestWeek();
+  const el = document.getElementById('dash');
+  if (!w) {
+    el.innerHTML = `<div class="empty"><div class="empty-icon">📭</div><p>Няма въведена седмица.<br>Добави първата от меню → <b>Нова седмица</b>.</p></div>`;
     return;
   }
-  const{data:ex}=await db.from('expenses').select('*').eq('week_id',w.id);
-  const{data:pa}=await db.from('payments').select('*').eq('week_id',w.id);
-  const exp=ex?.reduce((a,b)=>a+b.amount,0)||0;
-  const pay=pa?.reduce((a,b)=>a+b.amount,0)||0;
-  const profit=+(w.net_income-exp).toFixed(2);
-  const diff=+(pay-profit).toFixed(2);
-  const pos=diff>=0;
-  el.innerHTML=`
-    <div class="period-badge">📅 <span>${fmtDate(w.start_date)}</span> → <span>${fmtDate(w.end_date)}</span></div>
+  const { data:ex } = await db.from('expenses').select('*').eq('week_id', w.id);
+  const { data:pa } = await db.from('payments').select('*').eq('week_id', w.id);
+  const exp    = ex?.reduce((a,b) => a+b.amount, 0) || 0;
+  const pay    = pa?.reduce((a,b) => a+b.amount, 0) || 0;
+  const profit = +(w.net_income - exp).toFixed(2);
+  const diff   = +(pay - profit).toFixed(2);
+  const pos    = diff >= 0;
+  el.innerHTML = `
+    <div class="period-badge" style="margin-top:16px">📅 <span>${fmtDate(w.start_date)}</span> → <span>${fmtDate(w.end_date)}</span></div>
     <div class="stat-grid">
       <div class="stat-card">
         <div class="stat-label">Брутен приход</div>
@@ -522,7 +616,7 @@ async function loadDash(){
       </div>
       <div class="stat-card">
         <div class="stat-label">Разходи</div>
-        <div class="stat-value" style="color:var(--red)">€${exp.toFixed(2)}</div>
+        <div class="stat-value red">€${exp.toFixed(2)}</div>
         <div class="stat-sub">${ex?.length||0} записа</div>
       </div>
       <div class="stat-card ${profit>=0?'green-card':'red-card'}">
@@ -538,219 +632,188 @@ async function loadDash(){
     </div>`;
 }
 
+// ── RECORDS ──
+async function loadRecords() {
+  const weeks  = await getAllWeeks();
+  const allExp = await getAllExpenses();
+  const { data:allPay } = await db.from('payments').select('*').order('payment_start', { ascending:false });
+
+  allRecords = [];
+
+  for (const w of [...weeks].reverse()) {
+    allRecords.push({ type:'inc', icon:'📦',
+      title: `Приход ${fmtDate(w.start_date)} → ${fmtDate(w.end_date)}`,
+      sub: `Брутен €${w.gross_income} · Такса ${w.operator_percent}%`,
+      amount: w.net_income, date: w.start_date });
+  }
+  for (const e of allExp) {
+    allRecords.push({ type:'exp', icon:'⛽',
+      title: e.category || 'Разход',
+      sub: fmtDate(e.expense_date) + (e.note ? ' · ' + e.note : ''),
+      amount: e.amount, date: e.expense_date });
+  }
+  for (const p of (allPay||[])) {
+    allRecords.push({ type:'pay', icon:'💸',
+      title: `Плащане ${fmtDate(p.payment_start)} → ${fmtDate(p.payment_end)}`,
+      sub: p.note || '', amount: p.amount, date: p.payment_start });
+  }
+
+  allRecords.sort((a,b) => (b.date||'').localeCompare(a.date||''));
+
+  // reset seg to "all"
+  document.querySelectorAll('#rec-seg .seg-btn').forEach((b,i) => b.classList.toggle('active', i===0));
+  renderRecords('all');
+}
+
+function renderRecords(filter) {
+  const list = filter === 'all' ? allRecords : allRecords.filter(r => r.type === filter);
+  const el   = document.getElementById('rec-list');
+  if (!list.length) {
+    el.innerHTML = `<div class="empty"><div class="empty-icon">📭</div><p>Няма записи.</p></div>`;
+    return;
+  }
+  const sign = { inc:'+', exp:'-', pay:'+' };
+  el.innerHTML = list.map(r => `
+    <div class="rec-item">
+      <div class="rec-icon ${r.type}">${r.icon}</div>
+      <div class="rec-body">
+        <div class="rec-title">${r.title}</div>
+        ${r.sub ? `<div class="rec-sub">${r.sub}</div>` : ''}
+      </div>
+      <div class="rec-amt ${r.type}">${sign[r.type]}€${(+r.amount).toFixed(2)}</div>
+    </div>`).join('') + `<div class="rec-count">${list.length} записа</div>`;
+}
+
+window.filterRecords = function(filter, btn) {
+  document.querySelectorAll('#rec-seg .seg-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  renderRecords(filter);
+};
+
 // ── CHARTS ──
 const chartDefaults = {
   responsive:true, maintainAspectRatio:false,
-  plugins:{ legend:{ display:false }, tooltip:{ backgroundColor:'#1a2540', titleColor:'#f1f5f9', bodyColor:'#94a3b8', borderColor:'#1e2d45', borderWidth:1, padding:10, callbacks:{ label: ctx=>' €'+ctx.parsed.y.toFixed(2) } } },
+  plugins:{ legend:{ display:false }, tooltip:{ backgroundColor:'#1a2540', titleColor:'#f1f5f9', bodyColor:'#94a3b8', borderColor:'#1e2d45', borderWidth:1, padding:10, callbacks:{ label: ctx => ' €'+ctx.parsed.y.toFixed(2) } } },
   scales:{
-    x:{ grid:{color:'rgba(30,45,69,0.6)'}, ticks:{color:'#64748b',font:{size:10,family:'Inter'}} },
-    y:{ grid:{color:'rgba(30,45,69,0.6)'}, ticks:{color:'#64748b',font:{size:10,family:'Inter'}, callback:v=>'€'+v} }
+    x:{ grid:{ color:'rgba(30,45,69,0.6)' }, ticks:{ color:'#64748b', font:{ size:10, family:'Inter' } } },
+    y:{ grid:{ color:'rgba(30,45,69,0.6)' }, ticks:{ color:'#64748b', font:{ size:10, family:'Inter' }, callback: v => '€'+v } }
   }
 };
 
-async function loadCharts(){
-  const weeks = await getAllWeeks();
+async function loadCharts() {
+  const weeks  = await getAllWeeks();
   const allExp = await getAllExpenses();
-  const last8 = weeks.slice(-8);
-
-  // fetch expenses per week
+  const last8  = weeks.slice(-8);
   const expByWeek = {};
-  for(const w of last8){
-    const{data}=await db.from('expenses').select('amount').eq('week_id',w.id);
-    expByWeek[w.id]=data?.reduce((a,b)=>a+b.amount,0)||0;
+  for (const w of last8) {
+    const { data } = await db.from('expenses').select('amount').eq('week_id', w.id);
+    expByWeek[w.id] = data?.reduce((a,b) => a+b.amount, 0) || 0;
   }
+  const labels = last8.map(w => fmtShort(w.start_date));
 
-  const labels = last8.map(w=>fmtShort(w.start_date));
-
-  // ── Income bar chart ──
   chartIncome = destroyChart(chartIncome);
   chartIncome = new Chart(document.getElementById('incomeChart'), {
     type:'bar',
-    data:{
-      labels,
-      datasets:[{
-        label:'Нетен приход',
-        data: last8.map(w=>w.net_income),
-        backgroundColor: last8.map(w=>w.net_income>=0?'rgba(249,115,22,0.7)':'rgba(239,68,68,0.7)'),
-        borderColor: last8.map(w=>w.net_income>=0?'#f97316':'#ef4444'),
-        borderWidth:1, borderRadius:6
-      }]
-    },
-    options:{...chartDefaults}
+    data:{ labels, datasets:[{ label:'Нетен приход', data:last8.map(w=>w.net_income), backgroundColor:last8.map(w=>w.net_income>=0?'rgba(249,115,22,0.7)':'rgba(239,68,68,0.7)'), borderColor:last8.map(w=>w.net_income>=0?'#f97316':'#ef4444'), borderWidth:1, borderRadius:6 }] },
+    options: chartDefaults
   });
 
-  // ── Gross vs Net grouped bar ──
   chartGrossNet = destroyChart(chartGrossNet);
   chartGrossNet = new Chart(document.getElementById('grossNetChart'), {
     type:'bar',
-    data:{
-      labels,
-      datasets:[
-        { label:'Брутен', data:last8.map(w=>w.gross_income), backgroundColor:'rgba(59,130,246,0.6)', borderColor:'#3b82f6', borderWidth:1, borderRadius:4 },
-        { label:'Нетен',  data:last8.map(w=>w.net_income),  backgroundColor:'rgba(249,115,22,0.6)', borderColor:'#f97316', borderWidth:1, borderRadius:4 }
-      ]
-    },
-    options:{
-      ...chartDefaults,
-      plugins:{
-        ...chartDefaults.plugins,
-        legend:{ display:true, labels:{ color:'#94a3b8', font:{size:11,family:'Inter'}, boxWidth:10, borderRadius:3 } },
-        tooltip:{ ...chartDefaults.plugins.tooltip, callbacks:{ label: ctx=>' '+ctx.dataset.label+': €'+ctx.parsed.y.toFixed(2) } }
-      }
-    }
+    data:{ labels, datasets:[
+      { label:'Брутен', data:last8.map(w=>w.gross_income), backgroundColor:'rgba(59,130,246,0.6)', borderColor:'#3b82f6', borderWidth:1, borderRadius:4 },
+      { label:'Нетен',  data:last8.map(w=>w.net_income),   backgroundColor:'rgba(249,115,22,0.6)', borderColor:'#f97316', borderWidth:1, borderRadius:4 }
+    ]},
+    options:{ ...chartDefaults, plugins:{ ...chartDefaults.plugins, legend:{ display:true, labels:{ color:'#94a3b8', font:{ size:11, family:'Inter' }, boxWidth:10 } }, tooltip:{ ...chartDefaults.plugins.tooltip, callbacks:{ label: ctx => ' '+ctx.dataset.label+': €'+ctx.parsed.y.toFixed(2) } } } }
   });
 
-  // ── Category donut ──
   const catMap = {};
-  for(const e of allExp){
-    const cat = e.category||'Друго';
-    catMap[cat]=(catMap[cat]||0)+e.amount;
-  }
-  const catKeys=Object.keys(catMap);
-  const catVals=catKeys.map(k=>+catMap[k].toFixed(2));
-  const total=catVals.reduce((a,b)=>a+b,0)||1;
+  for (const e of allExp) { const cat = e.category||'Друго'; catMap[cat] = (catMap[cat]||0) + e.amount; }
+  const catKeys = Object.keys(catMap);
+  const catVals = catKeys.map(k => +catMap[k].toFixed(2));
+  const total   = catVals.reduce((a,b) => a+b, 0) || 1;
 
   chartCat = destroyChart(chartCat);
   chartCat = new Chart(document.getElementById('catChart'), {
     type:'doughnut',
     data:{ labels:catKeys, datasets:[{ data:catVals, backgroundColor:CAT_COLORS.slice(0,catKeys.length), borderColor:'#111827', borderWidth:3, hoverOffset:6 }] },
-    options:{
-      responsive:true, maintainAspectRatio:false,
-      cutout:'65%',
-      plugins:{
-        legend:{ display:false },
-        tooltip:{ backgroundColor:'#1a2540', titleColor:'#f1f5f9', bodyColor:'#94a3b8', borderColor:'#1e2d45', borderWidth:1, padding:10, callbacks:{ label:ctx=>' €'+ctx.parsed.toFixed(2)+' ('+Math.round(ctx.parsed/total*100)+'%)' } }
-      }
-    }
+    options:{ responsive:true, maintainAspectRatio:false, cutout:'65%', plugins:{ legend:{ display:false }, tooltip:{ backgroundColor:'#1a2540', titleColor:'#f1f5f9', bodyColor:'#94a3b8', borderColor:'#1e2d45', borderWidth:1, padding:10, callbacks:{ label: ctx => ' €'+ctx.parsed.toFixed(2)+' ('+Math.round(ctx.parsed/total*100)+'%)' } } } }
   });
-
-  // category legend
-  const listEl=document.getElementById('catList');
-  listEl.innerHTML=catKeys.map((k,i)=>{
-    const pct=Math.round(catVals[i]/total*100);
-    return`<div class="cat-row">
-      <div class="cat-dot" style="background:${CAT_COLORS[i%CAT_COLORS.length]}"></div>
-      <div class="cat-name">${k}</div>
-      <div class="cat-bar-wrap"><div class="cat-bar" style="width:${pct}%;background:${CAT_COLORS[i%CAT_COLORS.length]}"></div></div>
-      <div class="cat-amt">€${catVals[i].toFixed(2)}</div>
-    </div>`;
+  document.getElementById('catList').innerHTML = catKeys.map((k,i) => {
+    const pct = Math.round(catVals[i]/total*100);
+    return `<div class="cat-row"><div class="cat-dot" style="background:${CAT_COLORS[i%8]}"></div><div class="cat-name">${k}</div><div class="cat-bar-wrap"><div class="cat-bar" style="width:${pct}%;background:${CAT_COLORS[i%8]}"></div></div><div class="cat-amt">€${catVals[i].toFixed(2)}</div></div>`;
   }).join('');
 
-  // ── Expenses per week bar ──
   chartExpWeek = destroyChart(chartExpWeek);
   chartExpWeek = new Chart(document.getElementById('expWeekChart'), {
     type:'line',
-    data:{
-      labels,
-      datasets:[{
-        label:'Разходи',
-        data:last8.map(w=>expByWeek[w.id]||0),
-        borderColor:'#ef4444', backgroundColor:'rgba(239,68,68,0.12)',
-        borderWidth:2, pointRadius:4, pointBackgroundColor:'#ef4444',
-        fill:true, tension:0.4
-      }]
-    },
-    options:{...chartDefaults, plugins:{...chartDefaults.plugins, tooltip:{...chartDefaults.plugins.tooltip}}}
+    data:{ labels, datasets:[{ label:'Разходи', data:last8.map(w=>expByWeek[w.id]||0), borderColor:'#ef4444', backgroundColor:'rgba(239,68,68,0.12)', borderWidth:2, pointRadius:4, pointBackgroundColor:'#ef4444', fill:true, tension:0.4 }] },
+    options: chartDefaults
   });
 }
 
 // ── EXPORT PDF ──
-window.exportPDF = async function(){
+window.exportPDF = async function() {
   toast('Генерирам PDF...');
-  const{jsPDF}=window.jspdf;
-  const doc=new jsPDF({orientation:'portrait',unit:'mm',format:'a4'});
-
-  const weeks=await getAllWeeks();
-  const allExp=await getAllExpenses();
-
-  // Header
-  doc.setFillColor(8,14,26);
-  doc.rect(0,0,210,297,'F');
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ orientation:'portrait', unit:'mm', format:'a4' });
+  const weeks  = await getAllWeeks();
+  const allExp = await getAllExpenses();
+  doc.setFillColor(8,14,26); doc.rect(0,0,210,297,'F');
   doc.setFontSize(20); doc.setTextColor(249,115,22);
-  doc.text('Glovo Tracker — Финансов отчет',15,20);
+  doc.text('Glovo Tracker — Финансов отчет', 15, 20);
   doc.setFontSize(10); doc.setTextColor(148,163,184);
-  doc.text('Генериран: '+new Date().toLocaleDateString('bg-BG'),15,28);
-
-  let y=40;
-
-  // Weeks table
-  doc.setFontSize(12); doc.setTextColor(241,245,249);
-  doc.text('Седмици',15,y); y+=6;
-
+  doc.text('Генериран: ' + new Date().toLocaleDateString('bg-BG'), 15, 28);
+  let y = 40;
+  doc.setFontSize(12); doc.setTextColor(241,245,249); doc.text('Седмици', 15, y); y += 6;
   doc.setFontSize(9); doc.setTextColor(100,116,139);
   doc.text('Период',15,y); doc.text('Брутен',75,y); doc.text('Такса',105,y); doc.text('Нетен',135,y); doc.text('Печалба',165,y);
-  y+=2;
-  doc.setDrawColor(30,45,69); doc.line(15,y,195,y); y+=5;
-
-  doc.setTextColor(241,245,249);
-  for(const w of weeks){
-    if(y>270){doc.addPage();doc.setFillColor(8,14,26);doc.rect(0,0,210,297,'F');y=20;}
-    const{data:ex}=await db.from('expenses').select('amount').eq('week_id',w.id);
-    const exp=ex?.reduce((a,b)=>a+b.amount,0)||0;
-    const profit=(w.net_income-exp).toFixed(2);
-    const col=profit>=0?[34,197,94]:[239,68,68];
+  y += 2; doc.setDrawColor(30,45,69); doc.line(15,y,195,y); y += 5;
+  for (const w of weeks) {
+    if (y > 270) { doc.addPage(); doc.setFillColor(8,14,26); doc.rect(0,0,210,297,'F'); y = 20; }
+    const { data:ex } = await db.from('expenses').select('amount').eq('week_id', w.id);
+    const exp = ex?.reduce((a,b) => a+b.amount, 0) || 0;
+    const profit = (w.net_income - exp).toFixed(2);
     doc.setFontSize(9); doc.setTextColor(241,245,249);
-    doc.text(`${fmtDate(w.start_date)} → ${fmtDate(w.end_date)}`,15,y);
-    doc.text(`€${w.gross_income}`,75,y);
-    doc.text(`€${w.operator_fee}`,105,y);
-    doc.text(`€${w.net_income}`,135,y);
-    doc.setTextColor(...col);
-    doc.text(`€${profit}`,165,y);
-    y+=7;
+    doc.text(`${fmtDate(w.start_date)} → ${fmtDate(w.end_date)}`, 15, y);
+    doc.text(`€${w.gross_income}`,75,y); doc.text(`€${w.operator_fee}`,105,y); doc.text(`€${w.net_income}`,135,y);
+    doc.setTextColor(...(profit>=0?[34,197,94]:[239,68,68]));
+    doc.text(`€${profit}`, 165, y); y += 7;
   }
-
-  y+=6;
-  // Expenses
-  if(y>250){doc.addPage();doc.setFillColor(8,14,26);doc.rect(0,0,210,297,'F');y=20;}
-  doc.setFontSize(12); doc.setTextColor(241,245,249);
-  doc.text('Разходи',15,y); y+=6;
+  y += 6;
+  if (y > 250) { doc.addPage(); doc.setFillColor(8,14,26); doc.rect(0,0,210,297,'F'); y = 20; }
+  doc.setFontSize(12); doc.setTextColor(241,245,249); doc.text('Разходи', 15, y); y += 6;
   doc.setFontSize(9); doc.setTextColor(100,116,139);
   doc.text('Дата',15,y); doc.text('Категория',55,y); doc.text('Сума',120,y); doc.text('Бележка',145,y);
-  y+=2; doc.line(15,y,195,y); y+=5;
-
-  for(const e of allExp){
-    if(y>270){doc.addPage();doc.setFillColor(8,14,26);doc.rect(0,0,210,297,'F');y=20;}
-    doc.setFontSize(9); doc.setTextColor(241,245,249);
-    doc.text(fmtDate(e.expense_date)||'',15,y);
-    doc.text((e.category||'—').substring(0,25),55,y);
-    doc.setTextColor(239,68,68);
-    doc.text(`€${e.amount}`,120,y);
-    doc.setTextColor(148,163,184);
-    doc.text((e.note||'').substring(0,25),145,y);
-    y+=7;
+  y += 2; doc.line(15,y,195,y); y += 5;
+  for (const e of allExp) {
+    if (y > 270) { doc.addPage(); doc.setFillColor(8,14,26); doc.rect(0,0,210,297,'F'); y = 20; }
+    doc.setFontSize(9); doc.setTextColor(241,245,249); doc.text(fmtDate(e.expense_date)||'',15,y);
+    doc.text((e.category||'—').substring(0,25),55,y); doc.setTextColor(239,68,68); doc.text(`€${e.amount}`,120,y);
+    doc.setTextColor(148,163,184); doc.text((e.note||'').substring(0,25),145,y); y += 7;
   }
-
   doc.save('glovo-report.pdf');
   toast('PDF е готов!');
 };
 
 // ── EXPORT EXCEL ──
-window.exportExcel = async function(){
+window.exportExcel = async function() {
   toast('Генерирам Excel...');
-  const weeks=await getAllWeeks();
-  const allExp=await getAllExpenses();
-  const{data:allPay}=await db.from('payments').select('*').order('payment_start',{ascending:true});
-
-  const wb=XLSX.utils.book_new();
-
-  // Sheet 1: Weeks
-  const wsData=[['Период от','Период до','Брутен приход','Такса %','Такса €','Нетен приход']];
-  for(const w of weeks){
-    wsData.push([fmtDate(w.start_date),fmtDate(w.end_date),w.gross_income,w.operator_percent,w.operator_fee,w.net_income]);
-  }
-  XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(wsData),'Седмици');
-
-  // Sheet 2: Expenses
-  const exData=[['Дата','Категория','Сума','Бележка']];
-  for(const e of allExp) exData.push([fmtDate(e.expense_date),e.category||'',e.amount,e.note||'']);
-  XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(exData),'Разходи');
-
-  // Sheet 3: Payments
-  const payData=[['Период от','Период до','Сума','Бележка']];
-  for(const p of (allPay||[])) payData.push([fmtDate(p.payment_start),fmtDate(p.payment_end),p.amount,p.note||'']);
-  XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(payData),'Плащания');
-
-  XLSX.writeFile(wb,'glovo-report.xlsx');
+  const weeks  = await getAllWeeks();
+  const allExp = await getAllExpenses();
+  const { data:allPay } = await db.from('payments').select('*').order('payment_start', { ascending:true });
+  const wb = XLSX.utils.book_new();
+  const wsData = [['Период от','Период до','Брутен приход','Такса %','Такса €','Нетен приход']];
+  for (const w of weeks) wsData.push([fmtDate(w.start_date),fmtDate(w.end_date),w.gross_income,w.operator_percent,w.operator_fee,w.net_income]);
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(wsData), 'Седмици');
+  const exData = [['Дата','Категория','Сума','Бележка']];
+  for (const e of allExp) exData.push([fmtDate(e.expense_date),e.category||'',e.amount,e.note||'']);
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(exData), 'Разходи');
+  const payData = [['Период от','Период до','Сума','Бележка']];
+  for (const p of (allPay||[])) payData.push([fmtDate(p.payment_start),fmtDate(p.payment_end),p.amount,p.note||'']);
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(payData), 'Плащания');
+  XLSX.writeFile(wb, 'glovo-report.xlsx');
   toast('Excel е готов!');
 };
 
