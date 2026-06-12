@@ -1,215 +1,1002 @@
 <!DOCTYPE html>
 <html lang="bg">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Glovo Track - Dashboard</title>
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-        
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-            background: #f5f5f5;
-            color: #333;
-            padding: 16px;
-        }
-        
-        .container {
-            max-width: 1200px;
-            margin: 0 auto;
-        }
-        
-        .period-badge {
-            display: inline-block;
-            background: #e3f2fd;
-            padding: 8px 12px;
-            border-radius: 4px;
-            font-weight: 500;
-            margin-bottom: 16px;
-            font-size: 14px;
-        }
-        
-        .stat-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-            gap: 16px;
-            margin-top: 16px;
-        }
-        
-        .stat-card {
-            background: white;
-            padding: 20px;
-            border-radius: 8px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-            border-left: 4px solid #2196F3;
-        }
-        
-        .stat-card.red-card {
-            border-left-color: #f44336;
-        }
-        
-        .stat-card.green-card {
-            border-left-color: #4CAF50;
-        }
-        
-        .stat-card.full {
-            grid-column: 1 / -1;
-        }
-        
-        .stat-label {
-            font-size: 12px;
-            color: #666;
-            text-transform: uppercase;
-            font-weight: 600;
-            margin-bottom: 8px;
-            letter-spacing: 0.5px;
-        }
-        
-        .stat-value {
-            font-size: 28px;
-            font-weight: bold;
-            margin-bottom: 8px;
-            color: #2196F3;
-        }
-        
-        .stat-value.red {
-            color: #f44336;
-        }
-        
-        .stat-value.green {
-            color: #4CAF50;
-        }
-        
-        .stat-value.accent {
-            color: #FF9800;
-        }
-        
-        .stat-sub {
-            font-size: 12px;
-            color: #999;
-            line-height: 1.5;
-        }
-        
-        .empty {
-            text-align: center;
-            padding: 60px 20px;
-            background: white;
-            border-radius: 8px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-        }
-        
-        .empty-icon {
-            font-size: 64px;
-            margin-bottom: 16px;
-        }
-        
-        .empty p {
-            color: #666;
-            font-size: 14px;
-            line-height: 1.6;
-        }
-        
-        .empty b {
-            color: #2196F3;
-        }
-    </style>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0"/>
+<title>Glovo Tracker</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing:border-box; margin:0; padding:0; }
+:root {
+  --bg:       #080e1a;
+  --surface:  #111827;
+  --surface2: #1a2540;
+  --border:   #1e2d45;
+  --accent:   #f97316;
+  --green:    #22c55e;
+  --red:      #ef4444;
+  --blue:     #3b82f6;
+  --text:     #f1f5f9;
+  --muted:    #64748b;
+  --label:    #94a3b8;
+  --nav-h:    65px;
+}
+body { font-family:'Inter',sans-serif; background:var(--bg); color:var(--text); min-height:100vh; -webkit-tap-highlight-color:transparent; }
+
+/* ── HEADER ── */
+.header {
+  padding:16px 16px 10px;
+  display:flex; align-items:center; justify-content:space-between;
+  position:sticky; top:0; z-index:40;
+  background:var(--bg);
+  border-bottom:1px solid var(--border);
+}
+.header-left { display:flex; align-items:center; gap:10px; }
+.header-logo { width:34px;height:34px;background:var(--accent);border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:17px;flex-shrink:0; }
+.header h1   { font-size:17px;font-weight:700;letter-spacing:-0.3px; }
+.header p    { font-size:10px;color:var(--muted);margin-top:1px; }
+
+/* ── HAMBURGER ── */
+.hamburger {
+  width:38px;height:38px;border:none;border-radius:10px;
+  background:var(--surface2);cursor:pointer;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;
+  flex-shrink:0;
+}
+.hamburger span {
+  display:block;width:18px;height:2px;background:var(--label);border-radius:2px;
+  transition:all 0.25s;
+}
+.hamburger.open span:nth-child(1) { transform:translateY(7px) rotate(45deg); }
+.hamburger.open span:nth-child(2) { opacity:0; transform:scaleX(0); }
+.hamburger.open span:nth-child(3) { transform:translateY(-7px) rotate(-45deg); }
+
+/* ── DRAWER ── */
+.drawer-overlay {
+  position:fixed;inset:0;z-index:50;
+  background:rgba(0,0,0,0.6);
+  opacity:0;pointer-events:none;
+  transition:opacity 0.25s;
+}
+.drawer-overlay.open { opacity:1;pointer-events:all; }
+
+.drawer {
+  position:fixed;top:0;right:0;bottom:0;
+  width:75%;max-width:300px;
+  background:var(--surface);
+  z-index:51;
+  transform:translateX(100%);
+  transition:transform 0.28s cubic-bezier(.4,0,.2,1);
+  display:flex;flex-direction:column;
+  border-left:1px solid var(--border);
+  overflow-y:auto;
+}
+.drawer.open { transform:translateX(0); }
+
+.drawer-header {
+  padding:20px 20px 16px;
+  border-bottom:1px solid var(--border);
+  display:flex;align-items:center;gap:10px;
+}
+.drawer-logo { width:32px;height:32px;background:var(--accent);border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:16px; }
+.drawer-title { font-size:15px;font-weight:700; }
+.drawer-sub   { font-size:11px;color:var(--muted); }
+
+.drawer-section { padding:12px 12px 4px; }
+.drawer-section-label { font-size:10px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.6px;padding:0 8px;margin-bottom:4px; }
+
+.drawer-item {
+  display:flex;align-items:center;gap:12px;
+  padding:12px 10px;border-radius:12px;
+  border:none;background:none;cursor:pointer;
+  color:var(--label);font-family:'Inter',sans-serif;font-size:14px;font-weight:500;
+  width:100%;text-align:left;
+  transition:background 0.15s,color 0.15s;
+}
+.drawer-item:active { background:var(--surface2); }
+.drawer-item.active { background:rgba(249,115,22,0.1);color:var(--accent); }
+.drawer-item .di-icon {
+  width:36px;height:36px;border-radius:10px;
+  background:var(--surface2);display:flex;align-items:center;justify-content:center;
+  font-size:16px;flex-shrink:0;transition:background 0.15s;
+}
+.drawer-item.active .di-icon { background:rgba(249,115,22,0.15); }
+.drawer-item .di-label { flex:1; }
+.drawer-item .di-arrow { font-size:11px;color:var(--border); }
+
+/* ── BOTTOM NAV (4 главни таба) ── */
+.nav {
+  position:fixed;bottom:0;left:0;right:0;
+  height:var(--nav-h);
+  background:var(--surface);
+  border-top:1px solid var(--border);
+  display:flex;justify-content:space-around;align-items:center;
+  padding-bottom:env(safe-area-inset-bottom);
+  z-index:40;
+}
+.nav-btn {
+  flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;
+  background:none;border:none;cursor:pointer;padding:6px 0;
+  color:var(--muted);font-family:'Inter',sans-serif;font-size:10px;font-weight:500;
+  transition:color 0.15s;
+}
+.nav-btn .nav-icon {
+  width:30px;height:30px;border-radius:9px;
+  display:flex;align-items:center;justify-content:center;font-size:17px;
+  transition:background 0.15s;
+}
+.nav-btn.active        { color:var(--accent); }
+.nav-btn.active .nav-icon { background:rgba(249,115,22,0.15); }
+
+/* ── CONTAINER ── */
+.container { padding:0 16px calc(var(--nav-h) + 16px); }
+
+/* ── PAGES ── */
+.page { display:none; }
+.page.active { display:block; }
+
+/* ── TYPOGRAPHY ── */
+.section-title { font-size:12px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.6px;margin:20px 0 10px; }
+
+/* ── STAT GRID ── */
+.stat-grid { display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px; }
+.stat-card { background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:14px; }
+.stat-card.full { grid-column:1/-1; }
+.stat-card.green-card { border-color:var(--green);background:rgba(34,197,94,0.07); }
+.stat-card.red-card   { border-color:var(--red);  background:rgba(239,68,68,0.07);  }
+.stat-label { font-size:11px;color:var(--muted);font-weight:500;margin-bottom:4px; }
+.stat-value { font-size:21px;font-weight:700;letter-spacing:-0.5px; }
+.stat-value.accent { color:var(--accent); }
+.stat-value.green  { color:var(--green); }
+.stat-value.red    { color:var(--red); }
+.stat-sub { font-size:11px;color:var(--muted);margin-top:3px; }
+
+.period-badge { display:inline-flex;align-items:center;gap:6px;background:var(--surface2);border:1px solid var(--border);border-radius:20px;padding:5px 12px;font-size:12px;color:var(--label);margin-bottom:14px; }
+.period-badge span { color:var(--text);font-weight:600; }
+
+/* ── FORMS ── */
+.form-card { background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:16px;margin-bottom:12px; }
+.form-card h2 { font-size:15px;font-weight:600;margin-bottom:14px;display:flex;align-items:center;gap:8px; }
+.form-card h2 .icon { width:28px;height:28px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:14px; }
+.icon-orange { background:rgba(249,115,22,0.15); }
+.icon-green  { background:rgba(34,197,94,0.15); }
+.icon-blue   { background:rgba(59,130,246,0.15); }
+
+.field { margin-bottom:12px; }
+.field label { display:block;font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:5px; }
+.field input {
+  width:100%;background:var(--bg);border:1px solid var(--border);border-radius:10px;
+  padding:13px;color:var(--text);font-size:16px;/* 16px prevents iOS zoom */
+  font-family:'Inter',sans-serif;transition:border-color 0.15s;outline:none;
+}
+.field input:focus { border-color:var(--accent); }
+.date-row { display:grid;grid-template-columns:1fr 1fr;gap:8px; }
+.amount-wrap { position:relative; }
+.amount-wrap input { padding-left:28px; }
+.amount-wrap::before { content:'€';position:absolute;left:13px;top:50%;transform:translateY(-50%);color:var(--muted);font-size:14px;font-weight:600;pointer-events:none; }
+
+.btn { width:100%;padding:14px;border:none;border-radius:12px;font-size:15px;font-weight:600;font-family:'Inter',sans-serif;cursor:pointer;transition:opacity 0.15s,transform 0.1s;margin-top:4px; }
+.btn:active { transform:scale(0.98);opacity:0.85; }
+.btn-orange { background:var(--accent);color:white; }
+.btn-green  { background:var(--green); color:white; }
+.btn-blue   { background:var(--blue);  color:white; }
+.btn-row    { display:grid;grid-template-columns:1fr 1fr;gap:8px; }
+
+/* ── CHARTS ── */
+.chart-card { background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:16px;margin-bottom:14px; }
+.chart-card h3 { font-size:14px;font-weight:600;margin-bottom:4px; }
+.chart-sub { font-size:11px;color:var(--muted);margin-bottom:14px; }
+.chart-wrap { position:relative;height:200px; }
+.cat-list { margin-top:12px; }
+.cat-row { display:flex;align-items:center;gap:10px;margin-bottom:10px; }
+.cat-dot { width:10px;height:10px;border-radius:50%;flex-shrink:0; }
+.cat-name { flex:1;font-size:13px; }
+.cat-bar-wrap { width:70px;height:6px;background:var(--border);border-radius:4px;overflow:hidden; }
+.cat-bar { height:100%;border-radius:4px;transition:width 0.4s; }
+.cat-amt { font-size:13px;font-weight:600;min-width:52px;text-align:right; }
+
+/* ── SEG ── */
+.seg { display:flex;background:var(--surface2);border-radius:10px;padding:3px;gap:3px;margin-bottom:16px; }
+.seg-btn { flex:1;padding:8px 4px;border:none;border-radius:8px;background:none;color:var(--muted);font-size:12px;font-weight:600;font-family:'Inter',sans-serif;cursor:pointer;transition:all 0.15s; }
+.seg-btn.active { background:var(--surface);color:var(--text);box-shadow:0 1px 4px rgba(0,0,0,0.4); }
+
+/* ── RECORDS ── */
+.rec-item { background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:13px 14px;margin-bottom:8px;display:flex;align-items:center;gap:12px; }
+.rec-icon { width:40px;height:40px;border-radius:11px;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0; }
+.rec-icon.inc { background:rgba(249,115,22,0.13); }
+.rec-icon.exp { background:rgba(59,130,246,0.13); }
+.rec-icon.pay { background:rgba(34,197,94,0.13); }
+.rec-body { flex:1;min-width:0; }
+.rec-title { font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis; }
+.rec-sub   { font-size:11px;color:var(--muted);margin-top:2px; }
+.rec-amt   { font-size:15px;font-weight:700;flex-shrink:0; }
+.rec-amt.inc { color:var(--accent); }
+.rec-amt.exp { color:var(--red); }
+.rec-amt.pay { color:var(--green); }
+.rec-count { font-size:11px;color:var(--muted);text-align:center;padding:8px 0; }
+
+/* ── EMPTY / SKELETON ── */
+.empty { text-align:center;padding:50px 20px;color:var(--muted); }
+.empty-icon { font-size:40px;margin-bottom:12px; }
+.empty p { font-size:13px;line-height:1.6; }
+.skeleton { background:linear-gradient(90deg,var(--surface) 25%,var(--surface2) 50%,var(--surface) 75%);background-size:200% 100%;animation:shimmer 1.2s infinite;border-radius:8px;height:16px;margin:6px 0; }
+@keyframes shimmer { 0%{background-position:200% 0} 100%{background-position:-200% 0} }
+
+/* ── TOAST ── */
+
+/* ── BOTTOM SHEET ── */
+.bs-overlay {
+  position:fixed;inset:0;z-index:60;
+  background:rgba(0,0,0,0.6);
+  opacity:0;pointer-events:none;
+  transition:opacity 0.25s;
+}
+.bs-overlay.open { opacity:1;pointer-events:all; }
+
+.bs {
+  position:fixed;bottom:0;left:0;right:0;
+  background:var(--surface);
+  border-radius:20px 20px 0 0;
+  border-top:1px solid var(--border);
+  z-index:61;
+  transform:translateY(100%);
+  transition:transform 0.3s cubic-bezier(.4,0,.2,1);
+  max-height:92vh;
+  overflow-y:auto;
+  padding:0 16px 32px;
+}
+.bs.open { transform:translateY(0); }
+
+.bs-handle {
+  width:36px;height:4px;border-radius:2px;
+  background:var(--border);margin:12px auto 16px;
+}
+.bs-title {
+  font-size:16px;font-weight:700;margin-bottom:16px;
+  display:flex;align-items:center;gap:8px;
+}
+.bs-title .bs-type-badge {
+  font-size:11px;font-weight:600;padding:3px 8px;border-radius:6px;
+}
+.badge-inc { background:rgba(249,115,22,0.15);color:var(--accent); }
+.badge-exp { background:rgba(59,130,246,0.15); color:var(--blue); }
+.badge-pay { background:rgba(34,197,94,0.15);  color:var(--green); }
+
+.btn-delete {
+  width:100%;padding:13px;border:1px solid var(--red);border-radius:12px;
+  font-size:14px;font-weight:600;font-family:'Inter',sans-serif;
+  background:rgba(239,68,68,0.08);color:var(--red);
+  cursor:pointer;transition:background 0.15s;margin-top:8px;
+}
+.btn-delete:active { background:rgba(239,68,68,0.2); }
+
+.btn-cancel {
+  width:100%;padding:13px;border:none;border-radius:12px;
+  font-size:14px;font-weight:600;font-family:'Inter',sans-serif;
+  background:var(--surface2);color:var(--muted);
+  cursor:pointer;margin-top:8px;
+}
+
+.toast { position:fixed;bottom:calc(var(--nav-h) + 12px);left:50%;transform:translateX(-50%) translateY(20px);background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:10px 18px;border-radius:20px;font-size:13px;font-weight:500;opacity:0;transition:opacity 0.2s,transform 0.2s;pointer-events:none;white-space:nowrap;z-index:99; }
+.toast.show { opacity:1;transform:translateX(-50%) translateY(0); }
+</style>
 </head>
 <body>
-    <div class="container">
-        <div id="dash"></div>
+
+<!-- HEADER -->
+<div class="header">
+  <div class="header-left">
+    <div class="header-logo">🛵</div>
+    <div>
+      <h1>Glovo Tracker</h1>
+      <p>Финансово проследяване</p>
     </div>
-    
-    <script>
-        // ── DASHBOARD ──
-        async function loadDash() {
-          const weeks = await getAllWeeks();
-          const allExp = await getAllExpenses();
-          const allPay = await getAllPayments();
-          const el = document.getElementById('dash');
-          
-          if (!weeks.length) {
-            el.innerHTML = `<div class="empty"><div class="empty-icon">📭</div><p>Няма въведена седмица.<br>Добави първата от меню → <b>Нова седмица</b></p></div>`;
-            return;
-          }
+  </div>
+  <button class="hamburger" id="hamburger" onclick="window.toggleDrawer()">
+    <span></span><span></span><span></span>
+  </button>
+</div>
 
-          // Очаквани брутни приходи (не получени)
-          const expectedGross = weeks
-            .filter(w => !w.is_received)
-            .reduce((a, b) => a + b.gross_income, 0);
+<!-- DRAWER OVERLAY -->
+<div class="drawer-overlay" id="drawer-overlay" onclick="window.closeDrawer()"></div>
 
-          // Очаквани нетени приходи (не получени)
-          const expectedNet = weeks
-            .filter(w => !w.is_received)
-            .reduce((a, b) => a + b.net_income, 0);
+<!-- DRAWER -->
+<div class="drawer" id="drawer">
+  <div class="drawer-header">
+    <div class="drawer-logo">🛵</div>
+    <div>
+      <div class="drawer-title">Glovo Tracker</div>
+      <div class="drawer-sub">Навигация</div>
+    </div>
+  </div>
 
-          // Получени брутни приходи
-          const receivedGross = weeks
-            .filter(w => w.is_received)
-            .reduce((a, b) => a + b.gross_income, 0);
+  <div class="drawer-section">
+    <div class="drawer-section-label">Преглед</div>
+    <button class="drawer-item active" id="di-home" onclick="window.show('home')">
+      <div class="di-icon">🏠</div><span class="di-label">Dashboard</span><span class="di-arrow">›</span>
+    </button>
+    <button class="drawer-item" id="di-records" onclick="window.show('records')">
+      <div class="di-icon">📋</div><span class="di-label">Всички записи</span><span class="di-arrow">›</span>
+    </button>
+    <button class="drawer-item" id="di-charts" onclick="window.show('charts')">
+      <div class="di-icon">📊</div><span class="di-label">Анализ & Графики</span><span class="di-arrow">›</span>
+    </button>
+  </div>
 
-          // Всички разходи
-          const totalExpenses = allExp.reduce((a, b) => a + b.amount, 0);
+  <div class="drawer-section">
+    <div class="drawer-section-label">Въвеждане</div>
+    <button class="drawer-item" id="di-week" onclick="window.show('week')">
+      <div class="di-icon">📦</div><span class="di-label">Нова седмица</span><span class="di-arrow">›</span>
+    </button>
+    <button class="drawer-item" id="di-expenses" onclick="window.show('expenses')">
+      <div class="di-icon">⛽</div><span class="di-label">Добави разход</span><span class="di-arrow">›</span>
+    </button>
+    <button class="drawer-item" id="di-payments" onclick="window.show('payments')">
+      <div class="di-icon">💸</div><span class="di-label">Добави плащане</span><span class="di-arrow">›</span>
+    </button>
+  </div>
+</div>
 
-          // Всички получени плащания
-          const totalPayments = allPay.reduce((a, b) => a + b.amount, 0);
+<!-- PAGES -->
+<div class="container">
 
-          // Налични пари: Плащания - Разходи
-          const availableMoney = +(totalPayments - totalExpenses).toFixed(2);
-          const isAvailablePositive = availableMoney >= 0;
+  <!-- HOME -->
+  <div id="home" class="page active">
+    <div id="dash">
+      <div class="skeleton" style="width:55%;height:12px;margin-top:20px"></div>
+      <div class="stat-grid" style="margin-top:14px">
+        <div class="stat-card"><div class="skeleton"></div><div class="skeleton" style="width:70%"></div></div>
+        <div class="stat-card"><div class="skeleton"></div><div class="skeleton" style="width:70%"></div></div>
+        <div class="stat-card full"><div class="skeleton"></div><div class="skeleton" style="width:50%"></div></div>
+      </div>
+    </div>
+  </div>
 
-          el.innerHTML = `
-            <div class="period-badge" style="margin-top:16px">📅 <span>Всички периоди</span></div>
-            <div class="stat-grid">
-              <div class="stat-card">
-                <div class="stat-label">Брутен приход (Очаквани)</div>
-                <div class="stat-value accent">€${expectedGross.toFixed(2)}</div>
-                <div class="stat-sub">Нетен: €${expectedNet.toFixed(2)}</div>
-              </div>
-              <div class="stat-card">
-                <div class="stat-label">Брутен приход (Получени)</div>
-                <div class="stat-value green">€${receivedGross.toFixed(2)}</div>
-                <div class="stat-sub">Маркирани като получени</div>
-              </div>
-              <div class="stat-card red-card">
-                <div class="stat-label">Всички разходи</div>
-                <div class="stat-value red">€${totalExpenses.toFixed(2)}</div>
-                <div class="stat-sub">${allExp.length} записа</div>
-              </div>
-              <div class="stat-card green-card">
-                <div class="stat-label">Всички плащания</div>
-                <div class="stat-value green">€${totalPayments.toFixed(2)}</div>
-                <div class="stat-sub">${allPay.length} плащания</div>
-              </div>
-              <div class="stat-card ${isAvailablePositive?'green-card':'red-card'} full">
-                <div class="stat-label">Налични пари</div>
-                <div class="stat-value ${isAvailablePositive?'green':'red'}">€${Math.abs(availableMoney).toFixed(2)}</div>
-                <div class="stat-sub">${isAvailablePositive?'✓ Налично':'✗ Дефицит'} · Плащания €${totalPayments.toFixed(2)} − Разходи €${totalExpenses.toFixed(2)}</div>
-              </div>
-            </div>`;
-        }
-        
-        // Функции за вземане на данни - должни да бъдат имплементирани
-        async function getAllWeeks() {
-            // TODO: Вземи всички седмици от хранилище/база данни
-            return [];
-        }
-        
-        async function getAllExpenses() {
-            // TODO: Вземи всички разходи от хранилище/база данни
-            return [];
-        }
-        
-        async function getAllPayments() {
-            // TODO: Вземи всички плащания от хранилище/база данни
-            return [];
-        }
-        
-        // Зареди dashboard при отваряне на страницата
-        document.addEventListener('DOMContentLoaded', loadDash);
-    </script>
+  <!-- RECORDS -->
+  <div id="records" class="page">
+    <div class="section-title">Всички записи</div>
+    <div class="seg" id="rec-seg">
+      <button class="seg-btn active" onclick="window.filterRecords('all',this)">Всички</button>
+      <button class="seg-btn" onclick="window.filterRecords('inc',this)">📦 Приходи</button>
+      <button class="seg-btn" onclick="window.filterRecords('exp',this)">⛽ Разходи</button>
+      <button class="seg-btn" onclick="window.filterRecords('pay',this)">💸 Плащания</button>
+    </div>
+    <div id="rec-list">
+      <div class="skeleton" style="height:62px;border-radius:14px;margin-bottom:8px"></div>
+      <div class="skeleton" style="height:62px;border-radius:14px;margin-bottom:8px"></div>
+      <div class="skeleton" style="height:62px;border-radius:14px"></div>
+    </div>
+  </div>
+
+  <!-- CHARTS -->
+  <div id="charts" class="page">
+    <div class="section-title">Анализ</div>
+    <div class="seg">
+      <button class="seg-btn active" onclick="window.switchChart('income',this)">📈 Приходи</button>
+      <button class="seg-btn" onclick="window.switchChart('expenses',this)">⛽ Разходи</button>
+    </div>
+    <div id="chart-income">
+      <div class="chart-card">
+        <h3>Нетен приход по седмици</h3>
+        <div class="chart-sub">Последните 8 седмици</div>
+        <div class="chart-wrap"><canvas id="incomeChart"></canvas></div>
+      </div>
+      <div class="chart-card">
+        <h3>Брутен vs Нетен</h3>
+        <div class="chart-sub">Сравнение след такса</div>
+        <div class="chart-wrap"><canvas id="grossNetChart"></canvas></div>
+      </div>
+    </div>
+    <div id="chart-expenses" style="display:none">
+      <div class="chart-card">
+        <h3>Разходи по категории</h3>
+        <div class="chart-sub">Всички седмици</div>
+        <div class="chart-wrap" style="height:220px"><canvas id="catChart"></canvas></div>
+        <div class="cat-list" id="catList"></div>
+      </div>
+      <div class="chart-card">
+        <h3>Разходи по седмици</h3>
+        <div class="chart-sub">Тренд</div>
+        <div class="chart-wrap"><canvas id="expWeekChart"></canvas></div>
+      </div>
+    </div>
+    <div class="section-title">Експорт</div>
+    <div class="btn-row">
+      <button class="btn btn-blue" onclick="window.exportPDF()">📄 PDF отчет</button>
+      <button class="btn btn-green" onclick="window.exportExcel()">📊 Excel</button>
+    </div>
+  </div>
+
+  <!-- WEEK -->
+  <div id="week" class="page">
+    <div class="section-title">Нова седмица</div>
+    <div class="form-card">
+      <h2><span class="icon icon-orange">📦</span> Период</h2>
+      <div class="field">
+        <label>От</label>
+        <input id="start" type="date">
+      </div>
+      <div class="field">
+        <label>До</label>
+        <input id="end" type="date">
+      </div>
+      <div class="field">
+        <label>Брутен приход</label>
+        <div class="amount-wrap"><input id="gross" type="number" inputmode="decimal" placeholder="0.00"></div>
+      </div>
+      <div class="field">
+        <label>Такса на оператора (%)</label>
+        <input id="percent" type="number" inputmode="decimal" value="20">
+      </div>
+      <button class="btn btn-orange" onclick="window.saveWeek()">Запази седмицата</button>
+    </div>
+  </div>
+
+  <!-- EXPENSES -->
+  <div id="expenses" class="page">
+    <div class="section-title">Нов разход</div>
+    <div class="form-card">
+      <h2><span class="icon icon-blue">⛽</span> Разход</h2>
+      <div class="field">
+        <label>Дата</label>
+        <input id="exp_date" type="date">
+      </div>
+      <div class="field">
+        <label>Сума</label>
+        <div class="amount-wrap"><input id="exp_amount" type="number" inputmode="decimal" placeholder="0.00"></div>
+      </div>
+      <div class="field">
+        <label>Категория</label>
+        <input id="exp_cat" type="text" placeholder="напр. Гориво, Сервиз...">
+      </div>
+      <div class="field">
+        <label>Бележка</label>
+        <input id="exp_note" type="text" placeholder="По избор">
+      </div>
+      <button class="btn btn-blue" onclick="window.addExpense()">Добави разход</button>
+    </div>
+  </div>
+
+  <!-- PAYMENTS -->
+  <div id="payments" class="page">
+    <div class="section-title">Ново плащане</div>
+    <div class="form-card">
+      <h2><span class="icon icon-green">💸</span> Плащане</h2>
+      <div class="field">
+        <label>Период от</label>
+        <input id="pay_start" type="date">
+      </div>
+      <div class="field">
+        <label>Период до</label>
+        <input id="pay_end" type="date">
+      </div>
+      <div class="field">
+        <label>Сума</label>
+        <div class="amount-wrap"><input id="pay_amount" type="number" inputmode="decimal" placeholder="0.00"></div>
+      </div>
+      <div class="field">
+        <label>Бележка</label>
+        <input id="pay_note" type="text" placeholder="По избор">
+      </div>
+      <button class="btn btn-green" onclick="window.addPayment()">Добави плащане</button>
+    </div>
+  </div>
+
+</div>
+
+<!-- TOAST -->
+<div class="toast" id="toast"></div>
+
+<!-- BOTTOM NAV (4 main) -->
+<div class="nav">
+  <button class="nav-btn active" id="nav-home" onclick="window.show('home')">
+    <div class="nav-icon">🏠</div>Home
+  </button>
+  <button class="nav-btn" id="nav-records" onclick="window.show('records')">
+    <div class="nav-icon">📋</div>Записи
+  </button>
+  <button class="nav-btn" id="nav-charts" onclick="window.show('charts')">
+    <div class="nav-icon">📊</div>Анализ
+  </button>
+  <button class="nav-btn" id="nav-menu" onclick="window.toggleDrawer()">
+    <div class="nav-icon">☰</div>Меню
+  </button>
+</div>
+
+<script>
+const db = window.supabase.createClient(
+  "https://xkxmsxlpnuhnpcaxazjh.supabase.co",
+  "sb_publishable_fMGDf3RDsyA8ZlVz1yWXjA_pRGpUOzj"
+);
+
+let chartIncome, chartGrossNet, chartCat, chartExpWeek;
+const CAT_COLORS = ['#f97316','#22c55e','#3b82f6','#a855f7','#ec4899','#eab308','#06b6d4','#ef4444'];
+let allRecords = [];
+
+// ── TOAST ──
+function toast(msg, ok=true) {
+  const t = document.getElementById('toast');
+  t.textContent = (ok ? '✓ ' : '✗ ') + msg;
+  t.style.borderColor = ok ? 'var(--green)' : 'var(--red)';
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2500);
+}
+
+// ── DRAWER ──
+window.toggleDrawer = function() {
+  const d = document.getElementById('drawer');
+  const o = document.getElementById('drawer-overlay');
+  const h = document.getElementById('hamburger');
+  const open = d.classList.contains('open');
+  d.classList.toggle('open', !open);
+  o.classList.toggle('open', !open);
+  h.classList.toggle('open', !open);
+};
+window.closeDrawer = function() {
+  document.getElementById('drawer').classList.remove('open');
+  document.getElementById('drawer-overlay').classList.remove('open');
+  document.getElementById('hamburger').classList.remove('open');
+};
+
+// ── NAV + DRAWER SYNC ──
+window.show = function(id) {
+  document.querySelectorAll('.page').forEach(d => d.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+
+  // bottom nav active
+  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+  const nb = document.getElementById('nav-' + id);
+  if (nb) nb.classList.add('active');
+  else document.getElementById('nav-menu').classList.add('active');
+
+  // drawer active
+  document.querySelectorAll('.drawer-item').forEach(b => b.classList.remove('active'));
+  const di = document.getElementById('di-' + id);
+  if (di) di.classList.add('active');
+
+  window.closeDrawer();
+
+  if (id === 'charts')  loadCharts();
+  if (id === 'records') loadRecords();
+};
+
+// ── SEGMENT chart ──
+window.switchChart = function(tab, btn) {
+  document.querySelectorAll('#charts .seg-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('chart-income').style.display   = tab === 'income'   ? 'block' : 'none';
+  document.getElementById('chart-expenses').style.display = tab === 'expenses' ? 'block' : 'none';
+};
+
+// ── HELPERS ──
+function calc(g, p) { return { fee: +(g*p/100).toFixed(2), net: +(g - g*p/100).toFixed(2) }; }
+function fmtDate(d)  { if (!d) return '—'; const [y,m,day] = d.split('-'); return `${day}.${m}.${y}`; }
+function fmtShort(d) { if (!d) return '';  const [,m,day]  = d.split('-'); return `${day}.${m}`; }
+function destroyChart(c) { if (c) c.destroy(); return null; }
+
+// ── DB HELPERS ──
+async function getLatestWeek() {
+  const { data, error } = await db.from('weeks').select('*').order('created_at', { ascending:false }).limit(1);
+  if (error || !data || !data.length) return null;
+  return data[0];
+}
+async function getAllWeeks() {
+  const { data } = await db.from('weeks').select('*').order('start_date', { ascending:true });
+  return data || [];
+}
+async function getAllExpenses() {
+  const { data } = await db.from('expenses').select('*').order('expense_date', { ascending:false });
+  return data || [];
+}
+
+// ── SAVE WEEK ──
+window.saveWeek = async function() {
+  const g = +document.getElementById('gross').value;
+  const p = +document.getElementById('percent').value;
+  const s = document.getElementById('start').value;
+  const e = document.getElementById('end').value;
+  if (!g || !s || !e) { toast('Попълни всички полета!', false); return; }
+  const c = calc(g, p);
+  const { error } = await db.from('weeks').insert([{ start_date:s, end_date:e, gross_income:g, operator_percent:p, operator_fee:c.fee, net_income:c.net }]);
+  if (error) { toast(error.message, false); return; }
+  toast('Седмицата е запазена!');
+  loadDash();
+};
+
+// ── ADD EXPENSE ──
+window.addExpense = async function() {
+  const w = await getLatestWeek();
+  if (!w) { toast('Първо добави седмица!', false); return; }
+  const { error } = await db.from('expenses').insert([{
+    week_id: w.id,
+    expense_date: document.getElementById('exp_date').value,
+    amount: +document.getElementById('exp_amount').value,
+    category: document.getElementById('exp_cat').value,
+    note: document.getElementById('exp_note').value
+  }]);
+  if (error) { toast(error.message, false); return; }
+  toast('Разходът е добавен!');
+  loadDash();
+};
+
+// ── ADD PAYMENT ──
+window.addPayment = async function() {
+  const w = await getLatestWeek();
+  if (!w) { toast('Първо добави седмица!', false); return; }
+  const ps = document.getElementById('pay_start').value;
+  const pe = document.getElementById('pay_end').value;
+  if (!ps || !pe) { toast('Въведи начална и крайна дата!', false); return; }
+  const { error } = await db.from('payments').insert([{
+    week_id: w.id, payment_start:ps, payment_end:pe,
+    amount: +document.getElementById('pay_amount').value,
+    note: document.getElementById('pay_note').value
+  }]);
+  if (error) { toast(error.message, false); return; }
+  toast('Плащането е добавено!');
+  loadDash();
+};
+
+// ── DASHBOARD ──
+async function loadDash() {
+  const w = await getLatestWeek();
+  const el = document.getElementById('dash');
+  if (!w) {
+    el.innerHTML = `<div class="empty"><div class="empty-icon">📭</div><p>Няма въведена седмица.<br>Добави първата от меню → <b>Нова седмица</b>.</p></div>`;
+    return;
+  }
+  const { data:ex } = await db.from('expenses').select('*').eq('week_id', w.id);
+  const { data:pa } = await db.from('payments').select('*').eq('week_id', w.id);
+  const exp    = ex?.reduce((a,b) => a+b.amount, 0) || 0;
+  const pay    = pa?.reduce((a,b) => a+b.amount, 0) || 0;
+  const profit = +(w.net_income - exp).toFixed(2);
+  const diff   = +(pay - profit).toFixed(2);
+  const pos    = diff >= 0;
+  el.innerHTML = `
+    <div class="period-badge" style="margin-top:16px">📅 <span>${fmtDate(w.start_date)}</span> → <span>${fmtDate(w.end_date)}</span></div>
+    <div class="stat-grid">
+      <div class="stat-card">
+        <div class="stat-label">Брутен приход</div>
+        <div class="stat-value">€${w.gross_income}</div>
+        <div class="stat-sub">Такса ${w.operator_percent}% = €${w.operator_fee}</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Нетен приход</div>
+        <div class="stat-value accent">€${w.net_income}</div>
+        <div class="stat-sub">След такса</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Разходи</div>
+        <div class="stat-value red">€${exp.toFixed(2)}</div>
+        <div class="stat-sub">${ex?.length||0} записа</div>
+      </div>
+      <div class="stat-card ${profit>=0?'green-card':'red-card'}">
+        <div class="stat-label">Печалба</div>
+        <div class="stat-value ${profit>=0?'green':'red'}">€${profit}</div>
+        <div class="stat-sub">Нет − Разходи</div>
+      </div>
+      <div class="stat-card full ${pos?'green-card':'red-card'}">
+        <div class="stat-label">Плащания получени</div>
+        <div class="stat-value ${pos?'green':'red'}">€${pay.toFixed(2)}</div>
+        <div class="stat-sub">${pos?'▲ Излишък':'▼ Дефицит'} €${Math.abs(diff)} спрямо печалбата</div>
+      </div>
+    </div>`;
+}
+
+// ── RECORDS ──
+async function loadRecords() {
+  const weeks  = await getAllWeeks();
+  const allExp = await getAllExpenses();
+  const { data:allPay } = await db.from('payments').select('*').order('payment_start', { ascending:false });
+
+  allRecords = [];
+
+  for (const w of [...weeks].reverse()) {
+    allRecords.push({ type:'inc', icon:'📦',
+      title: `Приход ${fmtDate(w.start_date)} → ${fmtDate(w.end_date)}`,
+      sub: `Брутен €${w.gross_income} · Такса ${w.operator_percent}%`,
+      amount: w.net_income, date: w.start_date, id: w.id, raw: w });
+  }
+  for (const e of allExp) {
+    allRecords.push({ type:'exp', icon:'⛽',
+      title: e.category || 'Разход',
+      sub: fmtDate(e.expense_date) + (e.note ? ' · ' + e.note : ''),
+      amount: e.amount, date: e.expense_date, id: e.id, raw: e });
+  }
+  for (const p of (allPay||[])) {
+    allRecords.push({ type:'pay', icon:'💸',
+      title: `Плащане ${fmtDate(p.payment_start)} → ${fmtDate(p.payment_end)}`,
+      sub: p.note || '', amount: p.amount, date: p.payment_start, id: p.id, raw: p });
+  }
+
+  allRecords.sort((a,b) => (b.date||'').localeCompare(a.date||''));
+
+  // reset seg to "all"
+  document.querySelectorAll('#rec-seg .seg-btn').forEach((b,i) => b.classList.toggle('active', i===0));
+  renderRecords('all');
+}
+
+function renderRecords(filter) {
+  const list = filter === 'all' ? allRecords : allRecords.filter(r => r.type === filter);
+  const el   = document.getElementById('rec-list');
+  if (!list.length) {
+    el.innerHTML = `<div class="empty"><div class="empty-icon">📭</div><p>Няма записи.</p></div>`;
+    return;
+  }
+  const sign = { inc:'+', exp:'-', pay:'+' };
+  // map list items back to allRecords index for edit
+  el.innerHTML = list.map(r => {
+    const idx = allRecords.indexOf(r);
+    return `<div class="rec-item" onclick="window.openEdit(${idx})" style="cursor:pointer;active:background:var(--surface2)">
+      <div class="rec-icon ${r.type}">${r.icon}</div>
+      <div class="rec-body">
+        <div class="rec-title">${r.title}</div>
+        ${r.sub ? `<div class="rec-sub">${r.sub}</div>` : ''}
+      </div>
+      <div style="display:flex;align-items:center;gap:8px">
+        <div class="rec-amt ${r.type}">${sign[r.type]}€${(+r.amount).toFixed(2)}</div>
+        <div style="color:var(--muted);font-size:16px">›</div>
+      </div>
+    </div>`;
+  }).join('') + `<div class="rec-count">${list.length} записа · Натисни за редакция</div>`;
+}
+
+window.filterRecords = function(filter, btn) {
+  document.querySelectorAll('#rec-seg .seg-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  renderRecords(filter);
+};
+
+// ── CHARTS ──
+const chartDefaults = {
+  responsive:true, maintainAspectRatio:false,
+  plugins:{ legend:{ display:false }, tooltip:{ backgroundColor:'#1a2540', titleColor:'#f1f5f9', bodyColor:'#94a3b8', borderColor:'#1e2d45', borderWidth:1, padding:10, callbacks:{ label: ctx => ' €'+ctx.parsed.y.toFixed(2) } } },
+  scales:{
+    x:{ grid:{ color:'rgba(30,45,69,0.6)' }, ticks:{ color:'#64748b', font:{ size:10, family:'Inter' } } },
+    y:{ grid:{ color:'rgba(30,45,69,0.6)' }, ticks:{ color:'#64748b', font:{ size:10, family:'Inter' }, callback: v => '€'+v } }
+  }
+};
+
+async function loadCharts() {
+  const weeks  = await getAllWeeks();
+  const allExp = await getAllExpenses();
+  const last8  = weeks.slice(-8);
+  const expByWeek = {};
+  for (const w of last8) {
+    const { data } = await db.from('expenses').select('amount').eq('week_id', w.id);
+    expByWeek[w.id] = data?.reduce((a,b) => a+b.amount, 0) || 0;
+  }
+  const labels = last8.map(w => fmtShort(w.start_date));
+
+  chartIncome = destroyChart(chartIncome);
+  chartIncome = new Chart(document.getElementById('incomeChart'), {
+    type:'bar',
+    data:{ labels, datasets:[{ label:'Нетен приход', data:last8.map(w=>w.net_income), backgroundColor:last8.map(w=>w.net_income>=0?'rgba(249,115,22,0.7)':'rgba(239,68,68,0.7)'), borderColor:last8.map(w=>w.net_income>=0?'#f97316':'#ef4444'), borderWidth:1, borderRadius:6 }] },
+    options: chartDefaults
+  });
+
+  chartGrossNet = destroyChart(chartGrossNet);
+  chartGrossNet = new Chart(document.getElementById('grossNetChart'), {
+    type:'bar',
+    data:{ labels, datasets:[
+      { label:'Брутен', data:last8.map(w=>w.gross_income), backgroundColor:'rgba(59,130,246,0.6)', borderColor:'#3b82f6', borderWidth:1, borderRadius:4 },
+      { label:'Нетен',  data:last8.map(w=>w.net_income),   backgroundColor:'rgba(249,115,22,0.6)', borderColor:'#f97316', borderWidth:1, borderRadius:4 }
+    ]},
+    options:{ ...chartDefaults, plugins:{ ...chartDefaults.plugins, legend:{ display:true, labels:{ color:'#94a3b8', font:{ size:11, family:'Inter' }, boxWidth:10 } }, tooltip:{ ...chartDefaults.plugins.tooltip, callbacks:{ label: ctx => ' '+ctx.dataset.label+': €'+ctx.parsed.y.toFixed(2) } } } }
+  });
+
+  const catMap = {};
+  for (const e of allExp) { const cat = e.category||'Друго'; catMap[cat] = (catMap[cat]||0) + e.amount; }
+  const catKeys = Object.keys(catMap);
+  const catVals = catKeys.map(k => +catMap[k].toFixed(2));
+  const total   = catVals.reduce((a,b) => a+b, 0) || 1;
+
+  chartCat = destroyChart(chartCat);
+  chartCat = new Chart(document.getElementById('catChart'), {
+    type:'doughnut',
+    data:{ labels:catKeys, datasets:[{ data:catVals, backgroundColor:CAT_COLORS.slice(0,catKeys.length), borderColor:'#111827', borderWidth:3, hoverOffset:6 }] },
+    options:{ responsive:true, maintainAspectRatio:false, cutout:'65%', plugins:{ legend:{ display:false }, tooltip:{ backgroundColor:'#1a2540', titleColor:'#f1f5f9', bodyColor:'#94a3b8', borderColor:'#1e2d45', borderWidth:1, padding:10, callbacks:{ label: ctx => ' €'+ctx.parsed.toFixed(2)+' ('+Math.round(ctx.parsed/total*100)+'%)' } } } }
+  });
+  document.getElementById('catList').innerHTML = catKeys.map((k,i) => {
+    const pct = Math.round(catVals[i]/total*100);
+    return `<div class="cat-row"><div class="cat-dot" style="background:${CAT_COLORS[i%8]}"></div><div class="cat-name">${k}</div><div class="cat-bar-wrap"><div class="cat-bar" style="width:${pct}%;background:${CAT_COLORS[i%8]}"></div></div><div class="cat-amt">€${catVals[i].toFixed(2)}</div></div>`;
+  }).join('');
+
+  chartExpWeek = destroyChart(chartExpWeek);
+  chartExpWeek = new Chart(document.getElementById('expWeekChart'), {
+    type:'line',
+    data:{ labels, datasets:[{ label:'Разходи', data:last8.map(w=>expByWeek[w.id]||0), borderColor:'#ef4444', backgroundColor:'rgba(239,68,68,0.12)', borderWidth:2, pointRadius:4, pointBackgroundColor:'#ef4444', fill:true, tension:0.4 }] },
+    options: chartDefaults
+  });
+}
+
+// ── EXPORT PDF ──
+window.exportPDF = async function() {
+  toast('Генерирам PDF...');
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ orientation:'portrait', unit:'mm', format:'a4' });
+  const weeks  = await getAllWeeks();
+  const allExp = await getAllExpenses();
+  doc.setFillColor(8,14,26); doc.rect(0,0,210,297,'F');
+  doc.setFontSize(20); doc.setTextColor(249,115,22);
+  doc.text('Glovo Tracker — Финансов отчет', 15, 20);
+  doc.setFontSize(10); doc.setTextColor(148,163,184);
+  doc.text('Генериран: ' + new Date().toLocaleDateString('bg-BG'), 15, 28);
+  let y = 40;
+  doc.setFontSize(12); doc.setTextColor(241,245,249); doc.text('Седмици', 15, y); y += 6;
+  doc.setFontSize(9); doc.setTextColor(100,116,139);
+  doc.text('Период',15,y); doc.text('Брутен',75,y); doc.text('Такса',105,y); doc.text('Нетен',135,y); doc.text('Печалба',165,y);
+  y += 2; doc.setDrawColor(30,45,69); doc.line(15,y,195,y); y += 5;
+  for (const w of weeks) {
+    if (y > 270) { doc.addPage(); doc.setFillColor(8,14,26); doc.rect(0,0,210,297,'F'); y = 20; }
+    const { data:ex } = await db.from('expenses').select('amount').eq('week_id', w.id);
+    const exp = ex?.reduce((a,b) => a+b.amount, 0) || 0;
+    const profit = (w.net_income - exp).toFixed(2);
+    doc.setFontSize(9); doc.setTextColor(241,245,249);
+    doc.text(`${fmtDate(w.start_date)} → ${fmtDate(w.end_date)}`, 15, y);
+    doc.text(`€${w.gross_income}`,75,y); doc.text(`€${w.operator_fee}`,105,y); doc.text(`€${w.net_income}`,135,y);
+    doc.setTextColor(...(profit>=0?[34,197,94]:[239,68,68]));
+    doc.text(`€${profit}`, 165, y); y += 7;
+  }
+  y += 6;
+  if (y > 250) { doc.addPage(); doc.setFillColor(8,14,26); doc.rect(0,0,210,297,'F'); y = 20; }
+  doc.setFontSize(12); doc.setTextColor(241,245,249); doc.text('Разходи', 15, y); y += 6;
+  doc.setFontSize(9); doc.setTextColor(100,116,139);
+  doc.text('Дата',15,y); doc.text('Категория',55,y); doc.text('Сума',120,y); doc.text('Бележка',145,y);
+  y += 2; doc.line(15,y,195,y); y += 5;
+  for (const e of allExp) {
+    if (y > 270) { doc.addPage(); doc.setFillColor(8,14,26); doc.rect(0,0,210,297,'F'); y = 20; }
+    doc.setFontSize(9); doc.setTextColor(241,245,249); doc.text(fmtDate(e.expense_date)||'',15,y);
+    doc.text((e.category||'—').substring(0,25),55,y); doc.setTextColor(239,68,68); doc.text(`€${e.amount}`,120,y);
+    doc.setTextColor(148,163,184); doc.text((e.note||'').substring(0,25),145,y); y += 7;
+  }
+  doc.save('glovo-report.pdf');
+  toast('PDF е готов!');
+};
+
+// ── EXPORT EXCEL ──
+window.exportExcel = async function() {
+  toast('Генерирам Excel...');
+  const weeks  = await getAllWeeks();
+  const allExp = await getAllExpenses();
+  const { data:allPay } = await db.from('payments').select('*').order('payment_start', { ascending:true });
+  const wb = XLSX.utils.book_new();
+  const wsData = [['Период от','Период до','Брутен приход','Такса %','Такса €','Нетен приход']];
+  for (const w of weeks) wsData.push([fmtDate(w.start_date),fmtDate(w.end_date),w.gross_income,w.operator_percent,w.operator_fee,w.net_income]);
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(wsData), 'Седмици');
+  const exData = [['Дата','Категория','Сума','Бележка']];
+  for (const e of allExp) exData.push([fmtDate(e.expense_date),e.category||'',e.amount,e.note||'']);
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(exData), 'Разходи');
+  const payData = [['Период от','Период до','Сума','Бележка']];
+  for (const p of (allPay||[])) payData.push([fmtDate(p.payment_start),fmtDate(p.payment_end),p.amount,p.note||'']);
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(payData), 'Плащания');
+  XLSX.writeFile(wb, 'glovo-report.xlsx');
+  toast('Excel е готов!');
+};
+
+
+// ── BOTTOM SHEET EDIT ──
+let editState = null; // { type, id, raw }
+
+window.openEdit = function(idx) {
+  const r = allRecords[idx];
+  if (!r) return;
+  editState = { type: r.type, id: r.id, raw: r };
+
+  const iconMap = { inc:'📦', exp:'⛽', pay:'💸' };
+  const labelMap = { inc:'Приход', exp:'Разход', pay:'Плащане' };
+  document.getElementById('bs-icon').textContent = iconMap[r.type];
+  const badge = document.getElementById('bs-badge');
+  badge.textContent = labelMap[r.type];
+  badge.className = 'bs-type-badge badge-' + r.type;
+
+  let fields = '';
+  if (r.type === 'inc') {
+    fields = `
+      <div class="field"><label>От</label><input id="e_start" type="date" value="${r.raw.start_date}"></div>
+      <div class="field"><label>До</label><input id="e_end" type="date" value="${r.raw.end_date}"></div>
+      <div class="field"><label>Брутен приход</label><div class="amount-wrap"><input id="e_gross" type="number" inputmode="decimal" value="${r.raw.gross_income}"></div></div>
+      <div class="field"><label>Такса (%)</label><input id="e_percent" type="number" inputmode="decimal" value="${r.raw.operator_percent}"></div>`;
+  } else if (r.type === 'exp') {
+    fields = `
+      <div class="field"><label>Дата</label><input id="e_exp_date" type="date" value="${r.raw.expense_date}"></div>
+      <div class="field"><label>Сума</label><div class="amount-wrap"><input id="e_exp_amount" type="number" inputmode="decimal" value="${r.raw.amount}"></div></div>
+      <div class="field"><label>Категория</label><input id="e_exp_cat" type="text" value="${r.raw.category||''}"></div>
+      <div class="field"><label>Бележка</label><input id="e_exp_note" type="text" value="${r.raw.note||''}"></div>`;
+  } else if (r.type === 'pay') {
+    fields = `
+      <div class="field"><label>Период от</label><input id="e_pay_start" type="date" value="${r.raw.payment_start}"></div>
+      <div class="field"><label>Период до</label><input id="e_pay_end" type="date" value="${r.raw.payment_end}"></div>
+      <div class="field"><label>Сума</label><div class="amount-wrap"><input id="e_pay_amount" type="number" inputmode="decimal" value="${r.raw.amount}"></div></div>
+      <div class="field"><label>Бележка</label><input id="e_pay_note" type="text" value="${r.raw.note||''}"></div>`;
+  }
+  document.getElementById('bs-fields').innerHTML = fields;
+
+  document.getElementById('bs-overlay').classList.add('open');
+  document.getElementById('bs').classList.add('open');
+};
+
+window.closeBS = function() {
+  document.getElementById('bs-overlay').classList.remove('open');
+  document.getElementById('bs').classList.remove('open');
+  editState = null;
+};
+
+window.saveEdit = async function() {
+  if (!editState) return;
+  const { type, id } = editState;
+  let updates = {};
+  let table = '';
+
+  if (type === 'inc') {
+    table = 'weeks';
+    const g = +document.getElementById('e_gross').value;
+    const p = +document.getElementById('e_percent').value;
+    updates = {
+      start_date: document.getElementById('e_start').value,
+      end_date:   document.getElementById('e_end').value,
+      gross_income: g, operator_percent: p,
+      operator_fee: +(g*p/100).toFixed(2),
+      net_income:   +(g - g*p/100).toFixed(2)
+    };
+  } else if (type === 'exp') {
+    table = 'expenses';
+    updates = {
+      expense_date: document.getElementById('e_exp_date').value,
+      amount:       +document.getElementById('e_exp_amount').value,
+      category:     document.getElementById('e_exp_cat').value,
+      note:         document.getElementById('e_exp_note').value
+    };
+  } else if (type === 'pay') {
+    table = 'payments';
+    updates = {
+      payment_start: document.getElementById('e_pay_start').value,
+      payment_end:   document.getElementById('e_pay_end').value,
+      amount:        +document.getElementById('e_pay_amount').value,
+      note:          document.getElementById('e_pay_note').value
+    };
+  }
+
+  const { error } = await db.from(table).update(updates).eq('id', id);
+  if (error) { toast(error.message, false); return; }
+  toast('Записът е обновен!');
+  window.closeBS();
+  loadDash();
+  loadRecords();
+};
+
+window.deleteRecord = async function() {
+  if (!editState) return;
+  const { type, id } = editState;
+  const tableMap = { inc:'weeks', exp:'expenses', pay:'payments' };
+  const { error } = await db.from(tableMap[type]).delete().eq('id', id);
+  if (error) { toast(error.message, false); return; }
+  toast('Записът е изтрит!');
+  window.closeBS();
+  loadDash();
+  loadRecords();
+};
+
+loadDash();
+</script>
+
+<!-- BOTTOM SHEET EDIT -->
+<div class="bs-overlay" id="bs-overlay" onclick="window.closeBS()"></div>
+<div class="bs" id="bs">
+  <div class="bs-handle"></div>
+  <div class="bs-title">
+    <span id="bs-icon"></span>
+    Редактирай запис
+    <span class="bs-type-badge" id="bs-badge"></span>
+  </div>
+  <div id="bs-fields"></div>
+  <button class="btn btn-orange" onclick="window.saveEdit()" style="margin-top:4px">Запази промените</button>
+  <button class="btn-delete" onclick="window.deleteRecord()">🗑 Изтрий запис</button>
+  <button class="btn-cancel" onclick="window.closeBS()">Откажи</button>
+</div>
+
 </body>
 </html>
