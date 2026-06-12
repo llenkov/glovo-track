@@ -388,7 +388,9 @@ window.saveWeek = async function(){
   const{error}=await db.from('weeks').insert([{start_date:s,end_date:e,gross_income:g,operator_percent:p,operator_fee:c.fee,net_income:c.net}]);
   if(error){toast(error.message,false);return;}
   toast('Седмицата е запазена!');
-  
+  loadDash();
+};
+
 // ── ALL RECORDS DATA CACHE ──
 let allRecords = [];
 
@@ -465,9 +467,6 @@ window.filterRecords = function(filter, btn) {
   document.querySelectorAll('#rec-seg .seg-btn').forEach(b => b.classList.remove('active'));
   btn.classList.add('active');
   renderRecords(filter);
-};
-
-loadDash();
 };
 
 // ── ADD EXPENSE ──
