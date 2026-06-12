@@ -1,67 +1,215 @@
-// ── DASHBOARD ──
-async function loadDash() {
-  const weeks = await getAllWeeks();
-  const allExp = await getAllExpenses();
-  const allPay = await getAllPayments();
-  const el = document.getElementById('dash');
-  
-  if (!weeks.length) {
-    el.innerHTML = `<div class="empty"><div class="empty-icon">📭</div><p>Няма въведена седмица.<br>Добави първата от меню → <b>Нова седмица</b>.</p></div>`;
-    return;
-  }
+<!DOCTYPE html>
+<html lang="bg">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Glovo Track - Dashboard</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: #f5f5f5;
+            color: #333;
+            padding: 16px;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        
+        .period-badge {
+            display: inline-block;
+            background: #e3f2fd;
+            padding: 8px 12px;
+            border-radius: 4px;
+            font-weight: 500;
+            margin-bottom: 16px;
+            font-size: 14px;
+        }
+        
+        .stat-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 16px;
+            margin-top: 16px;
+        }
+        
+        .stat-card {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            border-left: 4px solid #2196F3;
+        }
+        
+        .stat-card.red-card {
+            border-left-color: #f44336;
+        }
+        
+        .stat-card.green-card {
+            border-left-color: #4CAF50;
+        }
+        
+        .stat-card.full {
+            grid-column: 1 / -1;
+        }
+        
+        .stat-label {
+            font-size: 12px;
+            color: #666;
+            text-transform: uppercase;
+            font-weight: 600;
+            margin-bottom: 8px;
+            letter-spacing: 0.5px;
+        }
+        
+        .stat-value {
+            font-size: 28px;
+            font-weight: bold;
+            margin-bottom: 8px;
+            color: #2196F3;
+        }
+        
+        .stat-value.red {
+            color: #f44336;
+        }
+        
+        .stat-value.green {
+            color: #4CAF50;
+        }
+        
+        .stat-value.accent {
+            color: #FF9800;
+        }
+        
+        .stat-sub {
+            font-size: 12px;
+            color: #999;
+            line-height: 1.5;
+        }
+        
+        .empty {
+            text-align: center;
+            padding: 60px 20px;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        
+        .empty-icon {
+            font-size: 64px;
+            margin-bottom: 16px;
+        }
+        
+        .empty p {
+            color: #666;
+            font-size: 14px;
+            line-height: 1.6;
+        }
+        
+        .empty b {
+            color: #2196F3;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div id="dash"></div>
+    </div>
+    
+    <script>
+        // ── DASHBOARD ──
+        async function loadDash() {
+          const weeks = await getAllWeeks();
+          const allExp = await getAllExpenses();
+          const allPay = await getAllPayments();
+          const el = document.getElementById('dash');
+          
+          if (!weeks.length) {
+            el.innerHTML = `<div class="empty"><div class="empty-icon">📭</div><p>Няма въведена седмица.<br>Добави първата от меню → <b>Нова седмица</b></p></div>`;
+            return;
+          }
 
-  // Очаквани брутни приходи (не получени)
-  const expectedGross = weeks
-    .filter(w => !w.is_received)
-    .reduce((a, b) => a + b.gross_income, 0);
+          // Очаквани брутни приходи (не получени)
+          const expectedGross = weeks
+            .filter(w => !w.is_received)
+            .reduce((a, b) => a + b.gross_income, 0);
 
-  // Очаквани нетени приходи (не получени)
-  const expectedNet = weeks
-    .filter(w => !w.is_received)
-    .reduce((a, b) => a + b.net_income, 0);
+          // Очаквани нетени приходи (не получени)
+          const expectedNet = weeks
+            .filter(w => !w.is_received)
+            .reduce((a, b) => a + b.net_income, 0);
 
-  // Получени брутни приходи
-  const receivedGross = weeks
-    .filter(w => w.is_received)
-    .reduce((a, b) => a + b.gross_income, 0);
+          // Получени брутни приходи
+          const receivedGross = weeks
+            .filter(w => w.is_received)
+            .reduce((a, b) => a + b.gross_income, 0);
 
-  // Всички разходи
-  const totalExpenses = allExp.reduce((a, b) => a + b.amount, 0);
+          // Всички разходи
+          const totalExpenses = allExp.reduce((a, b) => a + b.amount, 0);
 
-  // Всички получени плащания
-  const totalPayments = allPay.reduce((a, b) => a + b.amount, 0);
+          // Всички получени плащания
+          const totalPayments = allPay.reduce((a, b) => a + b.amount, 0);
 
-  // Налични пари: Плащания - Разходи
-  const availableMoney = +(totalPayments - totalExpenses).toFixed(2);
-  const isAvailablePositive = availableMoney >= 0;
+          // Налични пари: Плащания - Разходи
+          const availableMoney = +(totalPayments - totalExpenses).toFixed(2);
+          const isAvailablePositive = availableMoney >= 0;
 
-  el.innerHTML = `
-    <div class="period-badge" style="margin-top:16px">📅 <span>Всички периоди</span></div>
-    <div class="stat-grid">
-      <div class="stat-card">
-        <div class="stat-label">Брутен приход (Очаквани)</div>
-        <div class="stat-value accent">€${expectedGross.toFixed(2)}</div>
-        <div class="stat-sub">Нетен: €${expectedNet.toFixed(2)}</div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-label">Брутен приход (Получени)</div>
-        <div class="stat-value green">€${receivedGross.toFixed(2)}</div>
-        <div class="stat-sub">Маркирани като получени</div>
-      </div>
-      <div class="stat-card red-card">
-        <div class="stat-label">Всички разходи</div>
-        <div class="stat-value red">€${totalExpenses.toFixed(2)}</div>
-        <div class="stat-sub">${allExp.length} записа</div>
-      </div>
-      <div class="stat-card green-card">
-        <div class="stat-label">Всички плащания</div>
-        <div class="stat-value green">€${totalPayments.toFixed(2)}</div>
-        <div class="stat-sub">${allPay.length} плащания</div>
-      </div>
-      <div class="stat-card ${isAvailablePositive?'green-card':'red-card'} full">
-        <div class="stat-label">Налични пари</div>
-        <div class="stat-value ${isAvailablePositive?'green':'red'}">€${Math.abs(availableMoney).toFixed(2)}</div>
-        <div class="stat-sub">${isAvailablePositive?'✓ Налично':'✗ Дефицит'} · Плащания €${totalPayments.toFixed(2)} − Разходи €${totalExpenses.toFixed(2)}</div>
-      </div>
-    </div>`;
-}
+          el.innerHTML = `
+            <div class="period-badge" style="margin-top:16px">📅 <span>Всички периоди</span></div>
+            <div class="stat-grid">
+              <div class="stat-card">
+                <div class="stat-label">Брутен приход (Очаквани)</div>
+                <div class="stat-value accent">€${expectedGross.toFixed(2)}</div>
+                <div class="stat-sub">Нетен: €${expectedNet.toFixed(2)}</div>
+              </div>
+              <div class="stat-card">
+                <div class="stat-label">Брутен приход (Получени)</div>
+                <div class="stat-value green">€${receivedGross.toFixed(2)}</div>
+                <div class="stat-sub">Маркирани като получени</div>
+              </div>
+              <div class="stat-card red-card">
+                <div class="stat-label">Всички разходи</div>
+                <div class="stat-value red">€${totalExpenses.toFixed(2)}</div>
+                <div class="stat-sub">${allExp.length} записа</div>
+              </div>
+              <div class="stat-card green-card">
+                <div class="stat-label">Всички плащания</div>
+                <div class="stat-value green">€${totalPayments.toFixed(2)}</div>
+                <div class="stat-sub">${allPay.length} плащания</div>
+              </div>
+              <div class="stat-card ${isAvailablePositive?'green-card':'red-card'} full">
+                <div class="stat-label">Налични пари</div>
+                <div class="stat-value ${isAvailablePositive?'green':'red'}">€${Math.abs(availableMoney).toFixed(2)}</div>
+                <div class="stat-sub">${isAvailablePositive?'✓ Налично':'✗ Дефицит'} · Плащания €${totalPayments.toFixed(2)} − Разходи €${totalExpenses.toFixed(2)}</div>
+              </div>
+            </div>`;
+        }
+        
+        // Функции за вземане на данни - должни да бъдат имплементирани
+        async function getAllWeeks() {
+            // TODO: Вземи всички седмици от хранилище/база данни
+            return [];
+        }
+        
+        async function getAllExpenses() {
+            // TODO: Вземи всички разходи от хранилище/база данни
+            return [];
+        }
+        
+        async function getAllPayments() {
+            // TODO: Вземи всички плащания от хранилище/база данни
+            return [];
+        }
+        
+        // Зареди dashboard при отваряне на страницата
+        document.addEventListener('DOMContentLoaded', loadDash);
+    </script>
+</body>
+</html>
