@@ -1082,12 +1082,11 @@ loadDash();
 
 // Register Service Worker
 if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.register('/sw.js').then(reg => {
-    console.log('Service Worker registered:', reg);
-  }).catch(err => {
-    console.log('Service Worker registration failed:', err);
-  });
+  navigator.serviceWorker.register('sw.js')  // ← БЕЗ наклонената черта отпред
+    .then(reg => console.log('SW registered:', reg))
+    .catch(err => console.log('SW registration failed:', err));
 }
+6. Бързо решение с един файл
 </script>
 
 <!-- BOTTOM SHEET EDIT -->
